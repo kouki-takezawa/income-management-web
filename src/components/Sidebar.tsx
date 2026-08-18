@@ -2,22 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, Gift, Palmtree, Settings, LogOut, PiggyBank } from "lucide-react";
+import { LogOut, PiggyBank } from "lucide-react";
 import { logoutAction } from "@/actions/logout";
+import { visibleNavItems } from "@/lib/nav";
 
-const NAV_ITEMS = [
-  { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
-  { href: "/salary", label: "給与・残業", icon: Wallet },
-  { href: "/bonus", label: "賞与", icon: Gift },
-  { href: "/leave", label: "有給休暇", icon: Palmtree },
-  { href: "/settings", label: "設定", icon: Settings },
-];
-
-export function Sidebar({ userEmail }: { userEmail: string }) {
+export function Sidebar({ userEmail, role }: { userEmail: string; role: string }) {
   const pathname = usePathname();
+  const navItems = visibleNavItems(role);
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar px-4 py-6">
+    <aside className="hidden h-full w-64 shrink-0 flex-col bg-sidebar px-4 py-6 md:flex">
       <div className="mb-8 flex items-center gap-3 px-2">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-white shadow-soft-sm">
           <PiggyBank size={22} />
@@ -29,7 +23,7 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1.5">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (

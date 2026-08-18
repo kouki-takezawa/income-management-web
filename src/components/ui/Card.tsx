@@ -11,7 +11,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-3xl bg-card p-6 shadow-soft ${className}`}
+      className={`rounded-3xl bg-card p-4 shadow-soft sm:p-6 ${className}`}
       style={style}
     >
       {children}
