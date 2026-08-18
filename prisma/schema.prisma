@@ -1,0 +1,111 @@
+// Prisma schema — 年収・給与・有給管理アプリ
+// Vercel Postgres + Prisma の公式パターンに準拠
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma ORM 7 removed `url` / `directUrl` from the datasource block — connection
+// strings now live in prisma.config.ts (for the CLI) and are passed to a driver
+// adapter at runtime (see src/lib/prisma.ts). We still read the same two Vercel
+// Postgres env vars (POSTGRES_PRISMA_URL = pooled, POSTGRES_URL_NON_POOLING = direct)
+// to preserve the intent of Vercel's official Prisma+Postgres pattern.
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  settings        Settings?
+  monthlyRecords  MonthlyRecord[]
+  overtimeEntries OvertimeEntry[]
+  bonuses         Bonus[]
+  leaveUsages     LeaveUsage[]
+  leaveManualGrants LeaveManualGrant[]
+}
+
+model Settings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  baseSalary            Int     @default(300000)
+  standardMonthlyHours  Int     @default(160)
+  overtimeRates         Json    @default("{\"weekday\":25,\"late_night\":50,\"holiday\":35,\"holiday_late_night\":60}")
+  hireDate              String?
+  annualLeaveDays       Int     @default(10)
+  fiscalStartMonth      Int     @default(4)
+  age                   Int     @default(30)
+  prefecture            String  @default("東京都")
+  showNetEstimate       Boolean @default(true)
+  allowances            Json    @default("[]")
+}
+
+model MonthlyRecord {
+  id                  String  @id @default(cuid())
+  userId              String
+  user                User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  year                Int
+  month               Int
+  baseSalaryOverride  Int?
+  allowancesOverride  Int?
+  note                String?
+
+  @@unique([userId, year, month])
+  @@index([userId])
+}
+
+model OvertimeEntry {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   String
+  hours  Json
+  note   String?
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model Bonus {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   String
+  name   String
+  amount Int
+
+  @@index([userId])
+}
+
+model LeaveUsage {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   String
+  type   String
+  days   Float
+  note   String?
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model LeaveManualGrant {
+  id     String  @id @default(cuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   String
+  days   Float
+  note   String?
+
+  @@index([userId])
+}
