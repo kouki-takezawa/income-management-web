@@ -8,11 +8,16 @@ import { Button } from "@/components/ui/Button";
 
 const initialState: AuthFormState = {};
 
-export function LoginForm() {
+export function LoginForm({ resetSuccess = false }: { resetSuccess?: boolean }) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {resetSuccess && (
+        <p className="rounded-2xl bg-success/12 px-4 py-2.5 text-sm font-medium text-success">
+          パスワードを再設定しました。新しいパスワードでログインしてください。
+        </p>
+      )}
       <Field label="メールアドレス">
         <TextInput type="email" name="email" required autoComplete="email" placeholder="you@example.com" />
       </Field>

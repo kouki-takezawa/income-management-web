@@ -32,10 +32,19 @@ export async function signupAction(_prevState: AuthFormState, formData: FormData
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+
+  // このシステムで最初に作られるユーザーは自動的に owner（管理者）になる。
+  // ADMIN_EMAIL が設定されていて一致する場合は、登録順に関わらず owner にする
+  // （どちらのユーザーが最初に登録されるか確定できない場合の明示的な上書き）。
+  const userCount = await prisma.user.count();
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const role = userCount === 0 || (!!adminEmail && adminEmail === email) ? "owner" : "member";
+
   await prisma.user.create({
     data: {
       email,
       passwordHash,
+      role,
       settings: { create: {} },
     },
   });

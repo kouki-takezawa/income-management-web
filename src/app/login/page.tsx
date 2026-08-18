@@ -1,7 +1,14 @@
 import { PiggyBank } from "lucide-react";
 import { LoginForm } from "@/components/auth/LoginForm";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string }>;
+}) {
+  const params = await searchParams;
+  const resetSuccess = params.reset === "success";
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-sm">
@@ -15,7 +22,7 @@ export default function LoginPage() {
           </div>
         </div>
         <div className="rounded-3xl bg-card p-7 shadow-soft">
-          <LoginForm />
+          <LoginForm resetSuccess={resetSuccess} />
         </div>
       </div>
     </div>

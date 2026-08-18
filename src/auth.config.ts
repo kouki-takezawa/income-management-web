@@ -13,13 +13,21 @@ export default {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isPublicPage =
-        nextUrl.pathname === "/login" || nextUrl.pathname === "/signup";
+      const path = nextUrl.pathname;
+      const isAuthPage = path === "/login" || path === "/signup";
+      // 管理者が発行したリンクからアクセスするページなので、ログイン状態に
+      // 関わらず常に到達できるようにする（ログイン中でも古いセッションのまま
+      // リンクを開くケースがあるため、ログイン済みでもリダイレクトしない）。
+      const isResetPasswordPage = path === "/reset-password";
 
-      if (isPublicPage) {
+      if (isAuthPage) {
         if (isLoggedIn) {
           return Response.redirect(new URL("/", nextUrl));
         }
+        return true;
+      }
+
+      if (isResetPasswordPage) {
         return true;
       }
 

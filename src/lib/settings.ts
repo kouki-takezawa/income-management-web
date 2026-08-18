@@ -14,6 +14,7 @@ export interface SettingsData {
   prefecture: string;
   showNetEstimate: boolean;
   allowances: Allowance[];
+  onboardingCompleted: boolean;
 }
 
 const DEFAULT_RATES: OvertimeRates = { weekday: 25, late_night: 50, holiday: 35, holiday_late_night: 60 };
@@ -31,6 +32,7 @@ interface SettingsRow {
   prefecture: string;
   showNetEstimate: boolean;
   allowances: Prisma.JsonValue;
+  onboardingCompleted: boolean;
 }
 
 // DB から読み込んだ設定行を安全に正規化する（欠損キーはデフォルト値で補完）。
@@ -69,6 +71,7 @@ export function normalizeSettings(row: SettingsRow): SettingsData {
     prefecture: row.prefecture,
     showNetEstimate: row.showNetEstimate,
     allowances,
+    onboardingCompleted: row.onboardingCompleted,
   };
 }
 

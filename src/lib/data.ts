@@ -1,18 +1,21 @@
 import "server-only";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { normalizeSettings, type SettingsData } from "@/lib/settings";
 import type { OvertimeHours } from "@/lib/business/salary";
 
 // ユーザーごとのデータ取得ヘルパー。すべて userId でスコープされる。
 
-export async function getOrCreateSettings(userId: string): Promise<SettingsData> {
+// React の cache() でラップし、同一リクエスト内（レイアウトのオンボーディング判定 +
+// 各ページ本体）で同じ userId に対して呼ばれても DB アクセスは1回で済むようにする。
+export const getOrCreateSettings = cache(async (userId: string): Promise<SettingsData> => {
   const row = await prisma.settings.upsert({
     where: { userId },
     update: {},
     create: { userId },
   });
   return normalizeSettings(row);
-}
+});
 
 export interface OvertimeEntryData {
   id: string;

@@ -17,14 +17,21 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
+  // "owner" | "member" — plain string (not a Prisma enum) to match this schema's
+  // existing convention for small closed value sets (see LeaveUsage.type).
+  // The very first user ever created becomes "owner" automatically; ADMIN_EMAIL
+  // can also force a specific account to "owner" (see src/actions/auth.ts and
+  // the self-healing check in src/auth.ts).
+  role         String   @default("member")
   createdAt    DateTime @default(now())
 
-  settings        Settings?
-  monthlyRecords  MonthlyRecord[]
-  overtimeEntries OvertimeEntry[]
-  bonuses         Bonus[]
-  leaveUsages     LeaveUsage[]
-  leaveManualGrants LeaveManualGrant[]
+  settings            Settings?
+  monthlyRecords      MonthlyRecord[]
+  overtimeEntries     OvertimeEntry[]
+  bonuses             Bonus[]
+  leaveUsages         LeaveUsage[]
+  leaveManualGrants   LeaveManualGrant[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Settings {
@@ -42,6 +49,22 @@ model Settings {
   prefecture            String  @default("東京都")
   showNetEstimate       Boolean @default(true)
   allowances            Json    @default("[]")
+  onboardingCompleted   Boolean @default(false)
+}
+
+// 管理者（role=owner）がユーザーの代わりに発行する、パスワード再設定用の
+// 単回使用トークン。生のトークンは保存せず、ハッシュ値のみ保存する。
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model MonthlyRecord {
