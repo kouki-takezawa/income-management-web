@@ -42,7 +42,7 @@ export function employmentIncomeDeduction(income: number): number {
   return 1_950_000;
 }
 
-const INCOME_TAX_BRACKETS: [number, number, number][] = [
+export const INCOME_TAX_BRACKETS: [number, number, number][] = [
   [1_950_000, 0.05, 0],
   [3_300_000, 0.1, 97_500],
   [6_950_000, 0.2, 427_500],
@@ -60,6 +60,47 @@ export function progressiveIncomeTax(taxable: number): number {
     }
   }
   return 0;
+}
+
+/** taxable（課税所得・国税ベース）が属する累進課税ブラケットの限界税率（rate）を返す。 */
+export function marginalIncomeTaxRate(taxable: number): number {
+  if (taxable <= 0) return 0;
+  for (const [upper, rate] of INCOME_TAX_BRACKETS) {
+    if (taxable <= upper) return rate;
+  }
+  return INCOME_TAX_BRACKETS[INCOME_TAX_BRACKETS.length - 1][1];
+}
+
+export interface FurusatoEstimate {
+  limit: number;
+  taxableResident: number;
+  incomeTaxRate: number;
+}
+
+/**
+ * ふるさと納税の実質負担2,000円で収まる寄付額の目安上限を概算する。
+ * 独身・扶養なしという単純化した前提（既存の手取り概算と同じ前提）。
+ * iDeCo・医療費控除・扶養控除など、ここで考慮していない他の控除は加味しない。
+ */
+export function estimateFurusatoLimit(annualGross: number, age: number, prefecture: string): FurusatoEstimate {
+  if (annualGross <= 0) {
+    return { limit: 0, taxableResident: 0, incomeTaxRate: 0 };
+  }
+
+  const { total: socialInsurance } = socialInsuranceBreakdown(annualGross, age, prefecture);
+  const deduction = employmentIncomeDeduction(annualGross);
+  const taxableNational = Math.max(0, annualGross - deduction - socialInsurance - 480_000);
+  const taxableResident = Math.max(0, annualGross - deduction - socialInsurance - 430_000);
+
+  if (taxableResident <= 0) {
+    return { limit: 0, taxableResident: 0, incomeTaxRate: 0 };
+  }
+
+  const incomeTaxRate = marginalIncomeTaxRate(taxableNational);
+  const residentIncomeBasedPortion = taxableResident * 0.1; // 住民税所得割のみ（均等割5,000円は含めない）
+  const limit = (residentIncomeBasedPortion * 0.2) / (0.9 - incomeTaxRate * 1.021) + 2_000;
+
+  return { limit, taxableResident, incomeTaxRate };
 }
 
 export interface NetIncomeEstimate {

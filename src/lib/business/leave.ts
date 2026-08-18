@@ -3,6 +3,7 @@
 // 時効2年をシミュレート）
 // Python版 app_state.py の auto_grants / next_grant_date / leave_balance を移植
 import { addMonths, addYears, compareYMD, diffDays, parseISO, todayYMD, YMD } from "./dates";
+import { fiscalYearMonths } from "./salary";
 
 const FIRST_GRANT_MONTHS_OFFSET = 6;
 const GRANT_INTERVAL_MONTHS = 12;
@@ -24,6 +25,21 @@ export interface LeaveBucket {
 export interface LeaveUsageLike {
   date: string;
   days: number;
+}
+
+/** 指定した年度（fiscalStartMonth 始まり）内に消化した有給日数の合計。前年比較で使用。 */
+export function leaveUsedInFiscalYear(
+  usages: LeaveUsageLike[],
+  fiscalStartMonth: number,
+  fiscalYear: number
+): number {
+  const monthSet = new Set(fiscalYearMonths(fiscalStartMonth, fiscalYear).map(({ y, m }) => `${y}-${m}`));
+  let total = 0;
+  for (const u of usages) {
+    const d = parseISO(u.date);
+    if (d && monthSet.has(`${d.y}-${d.m}`)) total += u.days;
+  }
+  return total;
 }
 
 export interface LeaveManualGrantLike {

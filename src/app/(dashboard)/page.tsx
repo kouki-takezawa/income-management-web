@@ -1,4 +1,17 @@
-import { Wallet, PiggyBank, Info, Clock3, PieChart as PieChartIcon, BarChart3, Palmtree, AlertTriangle } from "lucide-react";
+import Link from "next/link";
+import {
+  Wallet,
+  PiggyBank,
+  Info,
+  Clock3,
+  PieChart as PieChartIcon,
+  BarChart3,
+  Palmtree,
+  AlertTriangle,
+  Gift,
+  FileSpreadsheet,
+  FileText,
+} from "lucide-react";
 import { requireUserId } from "@/lib/session";
 import { getBonuses, getLeaveManualGrants, getLeaveUsages, getMonthlyRecords, getOrCreateSettings, getOvertimeEntries } from "@/lib/data";
 import { parseYearMonthParam, parseYearParam } from "@/lib/params";
@@ -12,7 +25,7 @@ import {
   recordAllowanceTotal,
   recordBaseSalary,
 } from "@/lib/business/salary";
-import { estimateNetIncome } from "@/lib/business/tax";
+import { estimateFurusatoLimit, estimateNetIncome } from "@/lib/business/tax";
 import { leaveBalance } from "@/lib/business/leave";
 import { MONTH_NAMES_JP } from "@/lib/business/constants";
 import { yen, hoursLabel, daysLabel } from "@/lib/format";
@@ -21,6 +34,7 @@ import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Pill } from "@/components/ui/Pill";
+import { Button } from "@/components/ui/Button";
 import { MonthNav, FiscalYearNav } from "@/components/Nav";
 import { IncomePieChart } from "@/components/charts/IncomePieChart";
 import { MonthlyBarChart } from "@/components/charts/MonthlyBarChart";
@@ -56,6 +70,7 @@ export default async function DashboardPage({
     settings.showNetEstimate && monthGross > 0
       ? estimateNetIncome(monthGross, settings.age, settings.prefecture, 12)
       : null;
+  const furusato = monthNet ? estimateFurusatoLimit(monthGross * 12, settings.age, settings.prefecture) : null;
 
   const summary = annualSummary(settings, monthlyRecords, overtimeEntries, bonuses, settings.fiscalStartMonth, fiscalYear);
   const leaveBal = leaveBalance(
@@ -138,16 +153,45 @@ export default async function DashboardPage({
         </Card>
       </div>
 
+      {furusato && (
+        <Card>
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: THEME.pink, color: "#fff" }}>
+              <Gift size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-text-secondary">ふるさと納税 目安上限額</div>
+              <div className="mt-1 text-3xl font-black text-text-primary">{yen(furusato.limit)}</div>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
+            ※ 独身・扶養なしという単純化した前提での概算です。自己負担額（¥2,000）は必ず発生します。iDeCo・医療費控除・扶養控除など、ここで考慮していない他の控除により実際の上限は変動します。あくまで目安としてご利用ください。
+          </p>
+        </Card>
+      )}
+
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-base font-extrabold text-text-primary">年間サマリー</h2>
-          <FiscalYearNav
-            fiscalYear={fiscalYear}
-            label={fiscalYearLabel(settings.fiscalStartMonth, fiscalYear)}
-            basePath="/"
-            param="fy"
-            extra={`&month=${dashYear}-${String(dashMonth).padStart(2, "0")}`}
-          />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <FiscalYearNav
+              fiscalYear={fiscalYear}
+              label={fiscalYearLabel(settings.fiscalStartMonth, fiscalYear)}
+              basePath="/"
+              param="fy"
+              extra={`&month=${dashYear}-${String(dashMonth).padStart(2, "0")}`}
+            />
+            <Link href={`/api/export/csv?fy=${fiscalYear}`} prefetch={false}>
+              <Button type="button" variant="outline" icon={<FileSpreadsheet size={14} />}>
+                CSVダウンロード
+              </Button>
+            </Link>
+            <Link href={`/api/export/pdf?fy=${fiscalYear}`} prefetch={false}>
+              <Button type="button" variant="outline" icon={<FileText size={14} />}>
+                PDFダウンロード
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
