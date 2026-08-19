@@ -250,9 +250,9 @@ export default async function DashboardPage({
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <Card className="lg:col-span-7" style={{ height: 320 }}>
+          <Card className="h-auto lg:col-span-7 sm:h-[320px]">
             <SectionTitle icon={<PieChartIcon size={16} />}>年収の内訳</SectionTitle>
-            <div style={{ height: 240 }} className="mt-2">
+            <div className="mt-2 h-72 sm:h-60">
               <IncomePieChart data={breakdown} />
             </div>
           </Card>

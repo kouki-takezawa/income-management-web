@@ -47,17 +47,26 @@ export function categoryBreakdown(
   transactions: BudgetTransactionData[],
   categories: BudgetCategoryData[]
 ): CategoryBreakdownItem[] {
-  const totals = new Map<string, number>();
+  // カテゴリIDではなく解決後の表示名でまとめる。削除済みカテゴリの取引は
+  // すべて「その他」に落ちるため、実在する「その他」カテゴリの取引と
+  // 同じ1行に集約されないと同名で複数行に分かれてしまう。
+  // BudgetCategory には (userId, name, type) の一意制約があるため、同名で
+  // 集約対象になり得るのは「削除済みカテゴリ（fallback）」と「実在する同名カテゴリ」の
+  // 組み合わせのみ。実在カテゴリの色を常に優先し、fallback色で上書きされないようにする。
+  const totals = new Map<string, CategoryBreakdownItem>();
   for (const t of transactions) {
     if (t.type !== "expense") continue;
-    totals.set(t.categoryId, (totals.get(t.categoryId) ?? 0) + t.amount);
+    const category = findCategory(categories, t.categoryId);
+    const name = category?.name ?? "その他";
+    const existing = totals.get(name);
+    if (existing) {
+      existing.value += t.amount;
+      if (category) existing.color = category.color;
+    } else {
+      totals.set(name, { name, value: t.amount, color: category?.color ?? FALLBACK_CATEGORY_COLOR });
+    }
   }
-  return [...totals.entries()]
-    .map(([categoryId, value]) => {
-      const category = findCategory(categories, categoryId);
-      return { name: category?.name ?? "その他", value, color: category?.color ?? FALLBACK_CATEGORY_COLOR };
-    })
-    .sort((a, b) => b.value - a.value);
+  return [...totals.values()].sort((a, b) => b.value - a.value);
 }
 
 export interface PeriodFlow {
@@ -69,12 +78,8 @@ export interface PeriodFlow {
 // periods は "YYYY-MM" または "YYYY" の配列（表示したい順で渡す）
 export function periodTrend(transactions: BudgetTransactionData[], periods: string[]): PeriodFlow[] {
   return periods.map((prefix) => {
-    const inPeriod = transactions.filter((t) => t.date.startsWith(prefix));
-    return {
-      label: prefix,
-      income: inPeriod.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-      expense: inPeriod.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-    };
+    const { income, expense } = monthlySummary(transactions, prefix);
+    return { label: prefix, income, expense };
   });
 }
 

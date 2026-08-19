@@ -22,8 +22,8 @@ export function IncomePieChart({ data }: { data: BreakdownItem[] }) {
   }
 
   return (
-    <div className="flex h-full items-center gap-6">
-      <div className="h-[180px] w-[180px] shrink-0">
+    <div className="flex h-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+      <div className="mx-auto h-[160px] w-[160px] shrink-0 sm:mx-0 sm:h-[180px] sm:w-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -44,7 +44,7 @@ export function IncomePieChart({ data }: { data: BreakdownItem[] }) {
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3.5 overflow-y-auto sm:w-auto">
         {data.map((d) => (
           <div key={d.name} className="flex items-center gap-2 text-sm">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: d.color }} />

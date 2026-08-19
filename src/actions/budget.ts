@@ -1,15 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma, isUniqueConstraintError } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
+import { isValidISODate } from "@/lib/business/dates";
 
 export interface ActionResult {
   success: boolean;
   error?: string;
 }
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function revalidateBudget() {
   revalidatePath("/budget");
@@ -28,15 +27,29 @@ export async function upsertBudgetCategory(input: {
     return { success: false, error: "カテゴリ名を入力してください" };
   }
 
-  if (input.id) {
-    const existing = await prisma.budgetCategory.findFirst({ where: { id: input.id, userId } });
-    if (!existing) return { success: false, error: "対象のカテゴリが見つかりません" };
-    await prisma.budgetCategory.update({
-      where: { id: input.id },
-      data: { name, type: input.type, color: input.color },
-    });
-  } else {
-    await prisma.budgetCategory.create({ data: { userId, name, type: input.type, color: input.color } });
+  const duplicate = await prisma.budgetCategory.findFirst({
+    where: { userId, name, type: input.type, ...(input.id ? { id: { not: input.id } } : {}) },
+  });
+  if (duplicate) {
+    return { success: false, error: "同じ名前のカテゴリが既にあります" };
+  }
+
+  try {
+    if (input.id) {
+      const existing = await prisma.budgetCategory.findFirst({ where: { id: input.id, userId } });
+      if (!existing) return { success: false, error: "対象のカテゴリが見つかりません" };
+      await prisma.budgetCategory.update({
+        where: { id: input.id },
+        data: { name, type: input.type, color: input.color },
+      });
+    } else {
+      await prisma.budgetCategory.create({ data: { userId, name, type: input.type, color: input.color } });
+    }
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return { success: false, error: "同じ名前のカテゴリが既にあります" };
+    }
+    throw error;
   }
 
   revalidateBudget();
@@ -59,12 +72,18 @@ export async function upsertBudgetTransaction(input: {
   memo: string;
 }): Promise<ActionResult> {
   const userId = await requireUserId();
-  if (!DATE_RE.test(input.date)) {
+  if (!isValidISODate(input.date)) {
     return { success: false, error: "日付は YYYY-MM-DD 形式で入力してください" };
   }
   const amount = Math.round(Number(input.amount) || 0);
   if (amount <= 0) {
     return { success: false, error: "金額を入力してください" };
+  }
+  const category = await prisma.budgetCategory.findFirst({
+    where: { id: input.categoryId, userId, type: input.type },
+  });
+  if (!category) {
+    return { success: false, error: "カテゴリが正しくありません" };
   }
   const memo = input.memo.trim() || null;
   const data = { date: input.date, type: input.type, categoryId: input.categoryId, amount, memo };

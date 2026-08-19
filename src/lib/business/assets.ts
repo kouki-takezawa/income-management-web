@@ -52,8 +52,11 @@ export function totalAssetsAsOf(
   return total;
 }
 
+// 「現在の資産総額」は常に今日時点での評価を意味する。未来日付のスナップショット
+// （前もって記録した予定残高など）を含めてしまうと、同じ今日時点を指すはずの
+// assetsTrend の最新点と数字がズレるため、totalAssetsAsOf に一本化する。
 export function currentTotalAssets(accounts: AssetAccountData[], snapshots: AssetSnapshotData[]): number {
-  return accounts.reduce((sum, account) => sum + (latestSnapshot(snapshots, account.id)?.value ?? 0), 0);
+  return totalAssetsAsOf(accounts, snapshots, toISO(todayYMD()));
 }
 
 export interface AllocationItem {

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { resolvePooledDatabaseUrl } from "./env";
 
@@ -26,4 +26,12 @@ export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
+}
+
+// findFirst による事前の重複チェックは、同時に2件送信された場合の競合を防げない
+// （両方がチェックを通過してから書き込むレースがある）。@@unique 制約に実際に
+// ぶつかった場合の最終防衛として、サーバーアクション側でこれを使い P2002 を
+// ユーザー向けのエラーメッセージに変換する。
+export function isUniqueConstraintError(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }

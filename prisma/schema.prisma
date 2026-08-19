@@ -147,6 +147,10 @@ model BudgetCategory {
   color     String
   createdAt DateTime @default(now())
 
+  // 同名カテゴリの重複作成を防ぐ（UI上も紛らわしいため）。副次的に、初回アクセス時の
+  // デフォルトカテゴリ作成（getOrCreateBudgetCategories）を createMany + skipDuplicates
+  // で冪等にし、同時アクセスによる二重作成を防ぐのにも使う。
+  @@unique([userId, name, type])
   @@index([userId])
 }
 

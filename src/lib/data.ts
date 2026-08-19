@@ -19,6 +19,11 @@ export const getOrCreateSettings = cache(async (userId: string): Promise<Setting
   return normalizeSettings(row);
 });
 
+export async function getUserEmail(userId: string): Promise<string> {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  return user?.email ?? "";
+}
+
 export interface OvertimeEntryData {
   id: string;
   date: string;
@@ -64,8 +69,12 @@ export const getOrCreateBudgetCategories = cache(async (userId: string): Promise
   if (existing.length > 0) {
     return existing.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));
   }
+  // skipDuplicates + (userId, name, type) の一意制約により、同時アクセスで
+  // このブロックが二重に走っても重複作成されない（デフォルトカテゴリ名は
+  // 固定なので、後続の insert は静かにスキップされるだけ）。
   await prisma.budgetCategory.createMany({
     data: DEFAULT_BUDGET_CATEGORIES.map((c) => ({ userId, name: c.name, type: c.type, color: c.color })),
+    skipDuplicates: true,
   });
   const created = await prisma.budgetCategory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
   return created.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));

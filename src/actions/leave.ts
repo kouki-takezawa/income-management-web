@@ -4,17 +4,16 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { leaveTypeDays } from "@/lib/business/constants";
+import { isValidISODate } from "@/lib/business/dates";
 
 export interface ActionResult {
   success: boolean;
   error?: string;
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
 export async function upsertLeaveUsage(input: { date: string; type: string; note: string }): Promise<ActionResult> {
   const userId = await requireUserId();
-  if (!DATE_RE.test(input.date)) {
+  if (!isValidISODate(input.date)) {
     return { success: false, error: "日付は YYYY-MM-DD 形式で入力してください" };
   }
   const days = leaveTypeDays(input.type);
@@ -42,7 +41,7 @@ export async function deleteLeaveUsage(date: string): Promise<ActionResult> {
 
 export async function addManualGrant(input: { date: string; days: number; note: string }): Promise<ActionResult> {
   const userId = await requireUserId();
-  if (!DATE_RE.test(input.date)) {
+  if (!isValidISODate(input.date)) {
     return { success: false, error: "日付は YYYY-MM-DD 形式で入力してください" };
   }
   const days = Number(input.days);

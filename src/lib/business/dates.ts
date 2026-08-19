@@ -23,6 +23,12 @@ export function parseISO(s: string | null | undefined): YMD | null {
   return { y, m, d };
 }
 
+// サーバーアクションの入力検証用（正規表現だけの DATE_RE 版と違い、2/30 のような
+// 存在しない日付も弾く）。actions/*.ts の各所で重複していた検証をここに一本化する。
+export function isValidISODate(s: string): boolean {
+  return parseISO(s) !== null;
+}
+
 export function toISO(ymd: YMD): string {
   const mm = String(ymd.m).padStart(2, "0");
   const dd = String(ymd.d).padStart(2, "0");

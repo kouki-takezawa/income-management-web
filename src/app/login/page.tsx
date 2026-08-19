@@ -8,6 +8,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const resetSuccess = params.reset === "success";
+  const accountUpdated = params.reset === "account-updated";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4 py-12">
@@ -22,7 +23,7 @@ export default async function LoginPage({
           </div>
         </div>
         <div className="rounded-3xl bg-card p-7 shadow-soft">
-          <LoginForm resetSuccess={resetSuccess} />
+          <LoginForm resetSuccess={resetSuccess} accountUpdated={accountUpdated} />
         </div>
       </div>
     </div>

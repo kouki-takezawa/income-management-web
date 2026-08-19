@@ -83,12 +83,7 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-2xl font-extrabold text-text-primary">設定</h1>
-        <p className="mt-1 text-sm text-text-secondary">給与・残業計算や有給付与の基準となる情報を登録します</p>
-      </div>
-
+    <>
       <Card>
         <SectionTitle icon={<BadgeCheck size={16} />}>基本情報</SectionTitle>
         <div className="mt-4 flex flex-wrap gap-4">
@@ -278,6 +273,6 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           {isPending ? "保存中..." : "設定を保存"}
         </Button>
       </div>
-    </div>
+    </>
   );
 }

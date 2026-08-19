@@ -3,13 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
+import { isValidISODate } from "@/lib/business/dates";
 
 export interface ActionResult {
   success: boolean;
   error?: string;
 }
-
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function upsertBonus(input: {
   id?: string;
@@ -18,7 +17,7 @@ export async function upsertBonus(input: {
   amount: number;
 }): Promise<ActionResult> {
   const userId = await requireUserId();
-  if (!DATE_RE.test(input.date)) {
+  if (!isValidISODate(input.date)) {
     return { success: false, error: "日付は YYYY-MM-DD 形式で入力してください" };
   }
   const amount = Math.round(Number(input.amount) || 0);

@@ -8,7 +8,13 @@ import { Button } from "@/components/ui/Button";
 
 const initialState: AuthFormState = {};
 
-export function LoginForm({ resetSuccess = false }: { resetSuccess?: boolean }) {
+export function LoginForm({
+  resetSuccess = false,
+  accountUpdated = false,
+}: {
+  resetSuccess?: boolean;
+  accountUpdated?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
@@ -16,6 +22,11 @@ export function LoginForm({ resetSuccess = false }: { resetSuccess?: boolean }) 
       {resetSuccess && (
         <p className="rounded-2xl bg-success/12 px-4 py-2.5 text-sm font-medium text-success">
           パスワードを再設定しました。新しいパスワードでログインしてください。
+        </p>
+      )}
+      {accountUpdated && (
+        <p className="rounded-2xl bg-success/12 px-4 py-2.5 text-sm font-medium text-success">
+          アカウント情報を変更しました。新しい情報でログインしてください。
         </p>
       )}
       <Field label="メールアドレス">

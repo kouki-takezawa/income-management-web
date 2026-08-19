@@ -217,7 +217,7 @@ export function BudgetManager({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-7" style={{ minHeight: 320 }}>
           <SectionTitle icon={<PieChartIcon size={16} />}>カテゴリ別支出</SectionTitle>
-          <div style={{ height: 240 }} className="mt-2">
+          <div className="mt-2 h-72 sm:h-60">
             {breakdown.length > 0 ? (
               <IncomePieChart data={breakdown} />
             ) : (

@@ -4,19 +4,18 @@ import bcrypt from "bcryptjs";
 import { AuthError } from "next-auth";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
+import { isValidEmail } from "@/lib/email";
 
 export interface AuthFormState {
   error?: string;
 }
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function signupAction(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const confirm = String(formData.get("confirm") || "");
 
-  if (!email || !EMAIL_RE.test(email)) {
+  if (!email || !isValidEmail(email)) {
     return { error: "有効なメールアドレスを入力してください" };
   }
   if (password.length < 8) {
