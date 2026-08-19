@@ -30,10 +30,10 @@ import { Field, TextInput, Select } from "@/components/ui/Field";
 import { MonthNav } from "@/components/Nav";
 import { IncomePieChart } from "@/components/charts/IncomePieChart";
 import { BudgetTrendChart } from "@/components/charts/BudgetTrendChart";
-import { yen } from "@/lib/format";
+import { yen, deltaPercent } from "@/lib/format";
 import { THEME } from "@/lib/theme";
 import { useFeedback } from "@/lib/useFeedback";
-import { addMonths, toISO } from "@/lib/business/dates";
+import { addMonths, toISO, todayISOString } from "@/lib/business/dates";
 import {
   categoryBreakdown,
   categoryBudgetStatuses,
@@ -63,8 +63,6 @@ const CATEGORY_COLOR_SWATCHES = [
   THEME.danger,
   THEME.textSecondary,
 ];
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 interface TxFormState {
   id?: string;
@@ -153,7 +151,6 @@ export function BudgetManager({
     const prevPrefix = toISO(prevMonth).slice(0, 7);
     return monthlySummary(transactions, prevPrefix);
   }, [transactions, year, month]);
-  const deltaPercent = (current: number, prev: number): number | null => (prev > 0 ? ((current - prev) / prev) * 100 : null);
   const breakdown = useMemo(() => categoryBreakdown(periodTx, categories), [periodTx, categories]);
   const budgetStatuses = useMemo(() => categoryBudgetStatuses(periodTx, categories), [periodTx, categories]);
   const overBudgetStatuses = budgetStatuses.filter((s) => s.overBudget);
@@ -176,7 +173,7 @@ export function BudgetManager({
   function openNewTx() {
     setTxError(null);
     setTxForm({
-      date: todayIso(),
+      date: todayISOString(),
       type: "expense",
       categoryId: expenseCategories[0]?.id ?? "",
       amount: "",

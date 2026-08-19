@@ -15,6 +15,7 @@ import { AssetsTrendChart } from "@/components/charts/AssetsTrendChart";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
 import { useFeedback } from "@/lib/useFeedback";
+import { todayISOString } from "@/lib/business/dates";
 import {
   ASSET_TYPE_LABEL,
   accountValueTrend,
@@ -30,8 +31,6 @@ interface SnapshotFormState {
   value: string;
   note: string;
 }
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function AccountDetail({
   account,
@@ -58,7 +57,7 @@ export function AccountDetail({
 
   function openNew() {
     setError(null);
-    setForm({ date: todayIso(), value: "", note: "" });
+    setForm({ date: todayISOString(), value: "", note: "" });
   }
 
   function openEdit(s: AssetSnapshotData) {

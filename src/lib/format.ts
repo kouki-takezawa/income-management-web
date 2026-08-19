@@ -30,6 +30,11 @@ export function toNumber(value: string | number | null | undefined, fallback = 0
   return Number.isFinite(n) ? n : fallback;
 }
 
+// 「先月比」などの増減率（%）。基準値が0以下（データなし）なら比較不能として null を返す。
+export function deltaPercent(current: number, prev: number): number | null {
+  return prev > 0 ? ((current - prev) / prev) * 100 : null;
+}
+
 // 空欄は null（未入力=継承の表現に使う）
 export function toOptionalNumber(value: string | number | null | undefined): number | null {
   if (value === null || value === undefined) return null;

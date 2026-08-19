@@ -47,7 +47,7 @@ import { leaveBalance } from "@/lib/business/leave";
 import { monthlySummary as budgetMonthlySummary } from "@/lib/business/budget";
 import { currentTotalAssets, totalAssetsAsOf } from "@/lib/business/assets";
 import { MONTH_NAMES_JP } from "@/lib/business/constants";
-import { yen, hoursLabel, daysLabel } from "@/lib/format";
+import { yen, hoursLabel, daysLabel, deltaPercent } from "@/lib/format";
 import { THEME, CATEGORY_COLORS } from "@/lib/theme";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
@@ -133,7 +133,6 @@ export default async function DashboardPage({
   );
   const prevTotalMonthIncome = prevMonthGross + prevBudgetSummary.income;
   const prevMonthSavings = prevTotalMonthIncome - prevBudgetSummary.expense;
-  const deltaPercent = (current: number, prev: number): number | null => (prev > 0 ? ((current - prev) / prev) * 100 : null);
 
   const monthNet =
     settings.showNetEstimate && monthGross > 0

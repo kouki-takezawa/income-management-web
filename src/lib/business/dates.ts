@@ -76,6 +76,13 @@ export function todayYMD(): YMD {
   return { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
 }
 
+// フォーム入力の日付欄の初期値などに使う「今日」の YYYY-MM-DD。todayYMD() と同じ
+// ローカル日付基準（`new Date().toISOString().slice(0, 10)` はUTC基準になり、
+// UTCより進んだタイムゾーンでは日付が変わる前の深夜〜早朝に前日の日付を返してしまう）。
+export function todayISOString(): string {
+  return toISO(todayYMD());
+}
+
 // 2つの日付の差分日数 (a - b)
 export function diffDays(a: YMD, b: YMD): number {
   const da = Date.UTC(a.y, a.m - 1, a.d);

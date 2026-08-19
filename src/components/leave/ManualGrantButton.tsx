@@ -7,22 +7,21 @@ import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { useFeedback } from "@/lib/useFeedback";
+import { todayISOString } from "@/lib/business/dates";
 import { addManualGrant } from "@/actions/leave";
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function ManualGrantButton() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState(todayISOString());
   const [days, setDays] = useState("");
   const [note, setNote] = useState("特別付与");
   const [error, setError] = useState<string | null>(null);
   const [feedback, showFeedback] = useFeedback();
 
   function openModal() {
-    setDate(todayIso());
+    setDate(todayISOString());
     setDays("");
     setNote("特別付与");
     setError(null);

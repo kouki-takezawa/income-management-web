@@ -13,6 +13,7 @@ import { Field, TextInput } from "@/components/ui/Field";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
 import { useFeedback } from "@/lib/useFeedback";
+import { todayISOString } from "@/lib/business/dates";
 import { upsertBonus, deleteBonus } from "@/actions/bonus";
 
 export interface BonusRow {
@@ -28,8 +29,6 @@ interface FormState {
   name: string;
   amount: string;
 }
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function BonusManager({
   bonuses,
@@ -49,7 +48,7 @@ export function BonusManager({
   const [feedback, showFeedback] = useFeedback();
 
   function openNew() {
-    setForm({ date: todayIso(), name: "夏季賞与", amount: "" });
+    setForm({ date: todayISOString(), name: "夏季賞与", amount: "" });
     setError(null);
   }
 
