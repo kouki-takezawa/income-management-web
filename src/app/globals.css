@@ -96,3 +96,9 @@ body {
     border-radius: 999px;
   }
 }
+
+/* <details><summary> の既定の開閉三角マーカーを消し、独自のシェブロンアイコンだけを見せる
+   （list-none で大半のモダンブラウザは消えるが、Safari 系保険として明示しておく） */
+summary::-webkit-details-marker {
+  display: none;
+}

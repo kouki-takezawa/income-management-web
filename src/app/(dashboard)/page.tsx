@@ -17,6 +17,7 @@ import {
   ArrowUpFromLine,
   TrendingUp,
   TrendingDown,
+  ChevronDown,
 } from "lucide-react";
 import { requireUserId } from "@/lib/session";
 import {
@@ -220,72 +221,81 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="bg-primary-light!" style={{ minHeight: 260 }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white">
-              <Wallet size={20} />
-            </div>
-            <span className="text-sm font-bold text-text-secondary">今月の総支給（額面）</span>
-          </div>
-          <div className="mt-4 truncate text-4xl font-black text-text-primary">{yen(monthGross)}</div>
-          <div className="mt-4 flex flex-wrap gap-2.5">
-            <Pill color={THEME.primaryDark}>基本給+手当 {yen(monthBase + monthAllow)}</Pill>
-            <Pill color={THEME.accent}>残業代 {yen(monthOtPay)}</Pill>
-          </div>
-          <div className="mt-2.5 text-[11px] text-text-muted">残業時間 {hoursLabel(monthOtHours)}</div>
-        </Card>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl bg-card p-4 shadow-soft sm:p-6">
+          <span className="text-sm font-bold text-text-primary">給与の内訳を見る（総支給・手取り概算・ふるさと納税）</span>
+          <ChevronDown size={18} className="shrink-0 text-text-secondary transition-transform group-open:rotate-180" />
+        </summary>
 
-        <Card className="bg-success/35!" style={{ minHeight: 260 }}>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-success text-white">
-              <PiggyBank size={20} />
-            </div>
-            <span className="text-sm font-bold text-text-secondary">今月の手取り概算</span>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Card className="bg-primary-light!" style={{ minHeight: 260 }}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-white">
+                  <Wallet size={20} />
+                </div>
+                <span className="text-sm font-bold text-text-secondary">今月の総支給（額面）</span>
+              </div>
+              <div className="mt-4 truncate text-4xl font-black text-text-primary">{yen(monthGross)}</div>
+              <div className="mt-4 flex flex-wrap gap-2.5">
+                <Pill color={THEME.primaryDark}>基本給+手当 {yen(monthBase + monthAllow)}</Pill>
+                <Pill color={THEME.accent}>残業代 {yen(monthOtPay)}</Pill>
+              </div>
+              <div className="mt-2.5 text-[11px] text-text-muted">残業時間 {hoursLabel(monthOtHours)}</div>
+            </Card>
+
+            <Card className="bg-success/35!" style={{ minHeight: 260 }}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-success text-white">
+                  <PiggyBank size={20} />
+                </div>
+                <span className="text-sm font-bold text-text-secondary">今月の手取り概算</span>
+              </div>
+              {monthNet ? (
+                <>
+                  <div className="mt-4 truncate text-4xl font-black text-text-primary">{yen(monthNet.net)}</div>
+                  <div className="mt-4 flex items-center justify-between text-xs">
+                    <span className="text-text-secondary">社会保険料</span>
+                    <span className="text-text-primary">-{yen(monthNet.socialInsurance)}</span>
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-xs">
+                    <span className="text-text-secondary">所得税+住民税(概算)</span>
+                    <span className="text-text-primary">-{yen(monthNet.incomeTax + monthNet.residentTax)}</span>
+                  </div>
+                  <div className="mt-3 text-[10px] leading-relaxed text-text-muted">
+                    ※ {settings.prefecture}・{settings.age}歳想定、年収を12等分した簡易概算です。実際の手取り額とは異なる場合があります。
+                  </div>
+                </>
+              ) : (
+                <div className="mt-8 flex flex-col items-center gap-2 text-center">
+                  <Info size={22} className="text-text-muted" />
+                  <p className="text-sm text-text-muted">
+                    {settings.showNetEstimate ? "この月のデータがまだありません" : "非表示に設定されています"}
+                  </p>
+                  <p className="text-[11px] text-text-muted">「設定」からいつでも表示できます</p>
+                </div>
+              )}
+            </Card>
           </div>
-          {monthNet ? (
-            <>
-              <div className="mt-4 truncate text-4xl font-black text-text-primary">{yen(monthNet.net)}</div>
-              <div className="mt-4 flex items-center justify-between text-xs">
-                <span className="text-text-secondary">社会保険料</span>
-                <span className="text-text-primary">-{yen(monthNet.socialInsurance)}</span>
+
+          {furusato && (
+            <Card>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: THEME.pink, color: "#fff" }}>
+                  <Gift size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-text-secondary">ふるさと納税 目安上限額</div>
+                  <div className="mt-1 text-3xl font-black text-text-primary">{yen(furusato.limit)}</div>
+                </div>
               </div>
-              <div className="mt-1.5 flex items-center justify-between text-xs">
-                <span className="text-text-secondary">所得税+住民税(概算)</span>
-                <span className="text-text-primary">-{yen(monthNet.incomeTax + monthNet.residentTax)}</span>
-              </div>
-              <div className="mt-3 text-[10px] leading-relaxed text-text-muted">
-                ※ {settings.prefecture}・{settings.age}歳想定、年収を12等分した簡易概算です。実際の手取り額とは異なる場合があります。
-              </div>
-            </>
-          ) : (
-            <div className="mt-8 flex flex-col items-center gap-2 text-center">
-              <Info size={22} className="text-text-muted" />
-              <p className="text-sm text-text-muted">
-                {settings.showNetEstimate ? "この月のデータがまだありません" : "非表示に設定されています"}
+              <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
+                ※ 独身・扶養なしという単純化した前提での概算です。自己負担額（¥2,000）は必ず発生します。iDeCo・医療費控除・扶養控除など、ここで考慮していない他の控除により実際の上限は変動します。あくまで目安としてご利用ください。
               </p>
-              <p className="text-[11px] text-text-muted">「設定」からいつでも表示できます</p>
-            </div>
+            </Card>
           )}
-        </Card>
-      </div>
-
-      {furusato && (
-        <Card>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: THEME.pink, color: "#fff" }}>
-              <Gift size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold text-text-secondary">ふるさと納税 目安上限額</div>
-              <div className="mt-1 text-3xl font-black text-text-primary">{yen(furusato.limit)}</div>
-            </div>
-          </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-text-muted">
-            ※ 独身・扶養なしという単純化した前提での概算です。自己負担額（¥2,000）は必ず発生します。iDeCo・医療費控除・扶養控除など、ここで考慮していない他の控除により実際の上限は変動します。あくまで目安としてご利用ください。
-          </p>
-        </Card>
-      )}
+        </div>
+      </details>
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

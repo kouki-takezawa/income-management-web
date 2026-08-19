@@ -92,26 +92,24 @@ export function AssetsManager({
 
       <StatCard label="資産総額" value={yen(total)} sub="最新のスナップショット合計" color={THEME.primary} icon={<Landmark size={18} />} />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-5" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<PieChartIcon size={16} />}>資産配分</SectionTitle>
-          <div className="mt-2 h-72 sm:h-60">
-            {allocation.length > 0 ? (
-              <IncomePieChart data={allocation} />
-            ) : (
-              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
-                まだ残高が記録されていません
-              </div>
-            )}
-          </div>
-        </Card>
-        <Card className="lg:col-span-7" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<TrendingUp size={16} />}>資産推移（直近12ヶ月）</SectionTitle>
-          <div style={{ height: 250 }} className="mt-2">
-            <AssetsTrendChart data={trend} gradientId="assetsTotalGradient" />
-          </div>
-        </Card>
-      </div>
+      <Card style={{ minHeight: 320 }}>
+        <SectionTitle icon={<PieChartIcon size={16} />}>資産配分</SectionTitle>
+        <div className="mt-2 h-72 sm:h-60">
+          {allocation.length > 0 ? (
+            <IncomePieChart data={allocation} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+              まだ残高が記録されていません
+            </div>
+          )}
+        </div>
+      </Card>
+      <Card>
+        <SectionTitle icon={<TrendingUp size={16} />}>資産推移（直近12ヶ月）</SectionTitle>
+        <div style={{ height: 280 }} className="mt-2">
+          <AssetsTrendChart data={trend} gradientId="assetsTotalGradient" />
+        </div>
+      </Card>
 
       <Card>
         <SectionTitle icon={<Landmark size={16} />}>資産口座一覧</SectionTitle>

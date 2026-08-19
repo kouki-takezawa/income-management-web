@@ -15,6 +15,15 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => {
   return { value: m, label: m === 1 ? "1月始まり（暦年）" : `${m}月始まり` };
 });
 
+const TABS = [
+  { key: "basic", label: "基本情報", icon: BadgeCheck },
+  { key: "leave", label: "有給休暇", icon: Palmtree },
+  { key: "overtime", label: "残業割増率", icon: Percent },
+  { key: "allowance", label: "諸手当", icon: CreditCard },
+  { key: "tax", label: "手取り概算", icon: Calculator },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
+
 let nextId = 0;
 function newAllowanceId() {
   nextId += 1;
@@ -40,6 +49,7 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
   const [allowances, setAllowances] = useState<AllowanceInput[]>(settings.allowances);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>("basic");
 
   function addAllowance() {
     setAllowances((prev) => [...prev, { id: newAllowanceId(), name: "新しい手当", amount: 0, includeInBase: false }]);
@@ -84,6 +94,27 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
 
   return (
     <>
+      <div className="scrollbar-thin flex gap-1.5 overflow-x-auto pb-1">
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = activeTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveTab(t.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                active ? "bg-primary text-white" : "bg-card text-text-secondary shadow-soft-sm hover:bg-primary-light"
+              }`}
+            >
+              <Icon size={14} />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "basic" && (
       <Card>
         <SectionTitle icon={<BadgeCheck size={16} />}>基本情報</SectionTitle>
         <div className="mt-4 flex flex-wrap gap-4">
@@ -114,7 +145,9 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           </div>
         </div>
       </Card>
+      )}
 
+      {activeTab === "leave" && (
       <Card>
         <SectionTitle icon={<Palmtree size={16} />}>有給休暇の設定</SectionTitle>
         <p className="mt-2 text-xs leading-relaxed text-text-muted">
@@ -137,7 +170,9 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           </div>
         </div>
       </Card>
+      )}
 
+      {activeTab === "overtime" && (
       <Card>
         <SectionTitle icon={<Percent size={16} />}>残業割増率</SectionTitle>
         <p className="mt-2 text-xs text-text-muted">
@@ -182,7 +217,9 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           </div>
         </div>
       </Card>
+      )}
 
+      {activeTab === "allowance" && (
       <Card>
         <div className="flex items-center justify-between">
           <SectionTitle icon={<CreditCard size={16} />}>諸手当</SectionTitle>
@@ -230,7 +267,9 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           ))}
         </div>
       </Card>
+      )}
 
+      {activeTab === "tax" && (
       <Card>
         <SectionTitle icon={<Calculator size={16} />}>手取り概算の設定</SectionTitle>
         <p className="mt-2 text-xs leading-relaxed text-text-muted">
@@ -265,6 +304,7 @@ export function SettingsForm({ settings }: { settings: SettingsData }) {
           </label>
         </div>
       </Card>
+      )}
 
       <div className="flex items-center justify-end gap-3">
         {error && <p className="text-sm font-medium text-danger">{error}</p>}

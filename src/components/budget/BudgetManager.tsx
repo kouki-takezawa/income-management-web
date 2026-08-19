@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   Plus,
   Pencil,
@@ -24,6 +23,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmButton } from "@/components/ui/ConfirmButton";
+import { OverflowMenu, OverflowMenuItem } from "@/components/ui/OverflowMenu";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { MonthNav } from "@/components/Nav";
 import { IncomePieChart } from "@/components/charts/IncomePieChart";
@@ -344,17 +344,17 @@ export function BudgetManager({
         <div className="flex flex-wrap items-center gap-2.5">
           {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
           <MonthNav year={year} month={month} basePath="/budget" param="month" />
-          <Button type="button" variant="outline" icon={<Repeat size={15} />} onClick={() => setRecurringModalOpen(true)}>
-            定期支出
-          </Button>
-          <Button type="button" variant="outline" icon={<Tags size={15} />} onClick={() => setCategoryModalOpen(true)}>
-            カテゴリ管理
-          </Button>
-          <Link href="/api/export/budget-csv" prefetch={false}>
-            <Button type="button" variant="outline" icon={<FileSpreadsheet size={15} />}>
-              CSV
-            </Button>
-          </Link>
+          <OverflowMenu>
+            <OverflowMenuItem icon={<Repeat size={15} />} onClick={() => setRecurringModalOpen(true)}>
+              定期支出
+            </OverflowMenuItem>
+            <OverflowMenuItem icon={<Tags size={15} />} onClick={() => setCategoryModalOpen(true)}>
+              カテゴリ管理
+            </OverflowMenuItem>
+            <OverflowMenuItem icon={<FileSpreadsheet size={15} />} href="/api/export/budget-csv">
+              CSVダウンロード
+            </OverflowMenuItem>
+          </OverflowMenu>
           <Button type="button" icon={<Plus size={16} />} onClick={openNewTx}>
             記録を追加
           </Button>
@@ -403,26 +403,24 @@ export function BudgetManager({
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-7" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<PieChartIcon size={16} />}>カテゴリ別支出</SectionTitle>
-          <div className="mt-2 h-72 sm:h-60">
-            {breakdown.length > 0 ? (
-              <IncomePieChart data={breakdown} />
-            ) : (
-              <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
-                この月の支出はまだ記録されていません
-              </div>
-            )}
-          </div>
-        </Card>
-        <Card className="lg:col-span-5" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<BarChart3 size={16} />}>収支の推移（直近12ヶ月）</SectionTitle>
-          <div style={{ height: 250 }} className="mt-2">
-            <BudgetTrendChart data={trendData} />
-          </div>
-        </Card>
-      </div>
+      <Card style={{ minHeight: 320 }}>
+        <SectionTitle icon={<PieChartIcon size={16} />}>カテゴリ別支出</SectionTitle>
+        <div className="mt-2 h-72 sm:h-60">
+          {breakdown.length > 0 ? (
+            <IncomePieChart data={breakdown} />
+          ) : (
+            <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+              この月の支出はまだ記録されていません
+            </div>
+          )}
+        </div>
+      </Card>
+      <Card>
+        <SectionTitle icon={<BarChart3 size={16} />}>収支の推移（直近12ヶ月）</SectionTitle>
+        <div style={{ height: 280 }} className="mt-2">
+          <BudgetTrendChart data={trendData} />
+        </div>
+      </Card>
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -579,12 +577,12 @@ export function BudgetManager({
                   {(type === "expense" ? expenseCategories : incomeCategories).map((c) => (
                     <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-bg/60 px-3 py-2">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
-                        {c.name}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-text-primary">{c.name}</p>
                         {c.monthlyLimit != null && (
-                          <span className="ml-1.5 text-xs text-text-muted">予算{yen(c.monthlyLimit)}</span>
+                          <p className="truncate text-xs text-text-muted">予算 {yen(c.monthlyLimit)}</p>
                         )}
-                      </span>
+                      </div>
                       {confirmDeleteCategoryId === c.id ? (
                         <>
                           <button
@@ -718,7 +716,7 @@ export function BudgetManager({
                     <p className={`truncate text-sm ${r.active ? "text-text-primary" : "text-text-muted line-through"}`}>
                       {r.name}
                     </p>
-                    <p className="text-xs text-text-muted">
+                    <p className="truncate text-xs text-text-muted">
                       毎月{r.dayOfMonth}日 ・ {r.type === "income" ? "+" : "-"}
                       {yen(r.amount)}
                       {!r.active && " ・ 停止中"}
