@@ -32,6 +32,9 @@ model User {
   leaveUsages         LeaveUsage[]
   leaveManualGrants   LeaveManualGrant[]
   passwordResetTokens PasswordResetToken[]
+  budgetCategories    BudgetCategory[]
+  budgetTransactions  BudgetTransaction[]
+  assetAccounts       AssetAccount[]
 }
 
 model Settings {
@@ -131,4 +134,63 @@ model LeaveManualGrant {
   note   String?
 
   @@index([userId])
+}
+
+model BudgetCategory {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  // "income" | "expense" — LeaveUsage.type と同じ流儀のプレーン文字列
+  type      String
+  color     String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model BudgetTransaction {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   String
+  // "income" | "expense"
+  type   String
+  // BudgetCategory.id への緩い参照。他モデルと同様に外部キー制約は張らず、
+  // カテゴリ削除時の後始末は表示側のフォールバック（「その他」扱い）に任せる。
+  categoryId String
+  amount     Int
+  memo       String?
+
+  @@index([userId])
+  @@index([userId, date])
+}
+
+model AssetAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  // "cash" | "bank" | "investment"
+  type      String
+  createdAt DateTime @default(now())
+
+  snapshots AssetSnapshot[]
+
+  @@index([userId])
+}
+
+model AssetSnapshot {
+  id             String       @id @default(cuid())
+  assetAccountId String
+  assetAccount   AssetAccount @relation(fields: [assetAccountId], references: [id], onDelete: Cascade)
+
+  date  String
+  value Int
+  note  String?
+
+  @@index([assetAccountId])
 }

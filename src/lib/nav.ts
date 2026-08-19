@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Wallet, Gift, Palmtree, TrendingUp, Settings, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Wallet, Gift, Palmtree, Receipt, Landmark, TrendingUp, Settings, ShieldCheck } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -15,6 +15,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/salary", label: "給与・残業", icon: Wallet },
   { href: "/bonus", label: "賞与", icon: Gift },
   { href: "/leave", label: "有給休暇", icon: Palmtree },
+  { href: "/budget", label: "家計簿", icon: Receipt },
+  { href: "/assets", label: "資産管理", icon: Landmark },
   { href: "/comparison", label: "前年比較", icon: TrendingUp },
   { href: "/settings", label: "設定", icon: Settings },
   { href: "/admin/users", label: "ユーザー管理", icon: ShieldCheck, ownerOnly: true },

@@ -11,9 +11,21 @@ import {
   Gift,
   FileSpreadsheet,
   FileText,
+  Receipt,
+  Landmark,
 } from "lucide-react";
 import { requireUserId } from "@/lib/session";
-import { getBonuses, getLeaveManualGrants, getLeaveUsages, getMonthlyRecords, getOrCreateSettings, getOvertimeEntries } from "@/lib/data";
+import {
+  getAssetAccounts,
+  getAssetSnapshots,
+  getBonuses,
+  getBudgetTransactions,
+  getLeaveManualGrants,
+  getLeaveUsages,
+  getMonthlyRecords,
+  getOrCreateSettings,
+  getOvertimeEntries,
+} from "@/lib/data";
 import { parseYearMonthParam, parseYearParam } from "@/lib/params";
 import { todayYMD } from "@/lib/business/dates";
 import {
@@ -27,6 +39,8 @@ import {
 } from "@/lib/business/salary";
 import { estimateFurusatoLimit, estimateNetIncome } from "@/lib/business/tax";
 import { leaveBalance } from "@/lib/business/leave";
+import { monthlySummary as budgetMonthlySummary } from "@/lib/business/budget";
+import { currentTotalAssets } from "@/lib/business/assets";
 import { MONTH_NAMES_JP } from "@/lib/business/constants";
 import { yen, hoursLabel, daysLabel } from "@/lib/format";
 import { THEME, CATEGORY_COLORS } from "@/lib/theme";
@@ -48,16 +62,34 @@ export default async function DashboardPage({
   const params = await searchParams;
   const today = todayYMD();
 
-  const [settings, monthlyRecords, overtimeEntries, bonuses, leaveUsages, leaveManualGrants] = await Promise.all([
+  const [
+    settings,
+    monthlyRecords,
+    overtimeEntries,
+    bonuses,
+    leaveUsages,
+    leaveManualGrants,
+    assetAccounts,
+    assetSnapshots,
+    budgetTransactions,
+  ] = await Promise.all([
     getOrCreateSettings(userId),
     getMonthlyRecords(userId),
     getOvertimeEntries(userId),
     getBonuses(userId),
     getLeaveUsages(userId),
     getLeaveManualGrants(userId),
+    getAssetAccounts(userId),
+    getAssetSnapshots(userId),
+    getBudgetTransactions(userId),
   ]);
 
   const { year: dashYear, month: dashMonth } = parseYearMonthParam(params.month, today.y, today.m);
+  const totalAssets = currentTotalAssets(assetAccounts, assetSnapshots);
+  const budgetSummary = budgetMonthlySummary(
+    budgetTransactions,
+    `${dashYear}-${String(dashMonth).padStart(2, "0")}`
+  );
   const fiscalYear = parseYearParam(params.fy, currentFiscalYear(settings.fiscalStartMonth, today));
 
   const monthRecord = findRecord(monthlyRecords, dashYear, dashMonth);
@@ -267,6 +299,30 @@ export default async function DashboardPage({
             )}
           </div>
         </Card>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <SectionTitle icon={<Receipt size={16} />}>家計簿・資産管理</SectionTitle>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Link href="/budget">
+            <StatCard
+              label="今月の家計簿収支"
+              value={yen(budgetSummary.balance)}
+              sub={`収入 ${yen(budgetSummary.income)} / 支出 ${yen(budgetSummary.expense)}`}
+              color={budgetSummary.balance >= 0 ? THEME.success : THEME.danger}
+              icon={<Receipt size={18} />}
+            />
+          </Link>
+          <Link href="/assets">
+            <StatCard
+              label="資産総額"
+              value={yen(totalAssets)}
+              sub="最新のスナップショット合計"
+              color={THEME.primary}
+              icon={<Landmark size={18} />}
+            />
+          </Link>
+        </div>
       </div>
     </div>
   );

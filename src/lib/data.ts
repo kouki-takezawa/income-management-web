@@ -3,6 +3,8 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { normalizeSettings, type SettingsData } from "@/lib/settings";
 import type { OvertimeHours } from "@/lib/business/salary";
+import { DEFAULT_BUDGET_CATEGORIES, type BudgetCategoryData, type BudgetTransactionData } from "@/lib/business/budget";
+import type { AssetAccountData, AssetSnapshotData } from "@/lib/business/assets";
 
 // ユーザーごとのデータ取得ヘルパー。すべて userId でスコープされる。
 
@@ -53,4 +55,55 @@ export async function getLeaveUsages(userId: string) {
 
 export async function getLeaveManualGrants(userId: string) {
   return prisma.leaveManualGrant.findMany({ where: { userId } });
+}
+
+// 初回アクセス時、そのユーザーのカテゴリが0件ならデフォルトカテゴリを作成する。
+// getOrCreateSettings と同じ考え方（同一リクエスト内で複数回呼ばれても DB アクセスは1回）。
+export const getOrCreateBudgetCategories = cache(async (userId: string): Promise<BudgetCategoryData[]> => {
+  const existing = await prisma.budgetCategory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  if (existing.length > 0) {
+    return existing.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));
+  }
+  await prisma.budgetCategory.createMany({
+    data: DEFAULT_BUDGET_CATEGORIES.map((c) => ({ userId, name: c.name, type: c.type, color: c.color })),
+  });
+  const created = await prisma.budgetCategory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  return created.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));
+});
+
+export async function getBudgetTransactions(userId: string): Promise<BudgetTransactionData[]> {
+  const rows = await prisma.budgetTransaction.findMany({ where: { userId }, orderBy: { date: "desc" } });
+  return rows.map((t) => ({
+    id: t.id,
+    date: t.date,
+    type: t.type as "income" | "expense",
+    categoryId: t.categoryId,
+    amount: t.amount,
+    memo: t.memo,
+  }));
+}
+
+export async function getAssetAccounts(userId: string): Promise<AssetAccountData[]> {
+  const rows = await prisma.assetAccount.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  return rows.map((a) => ({ id: a.id, name: a.name, type: a.type as AssetAccountData["type"] }));
+}
+
+export async function getAssetSnapshots(userId: string): Promise<AssetSnapshotData[]> {
+  const rows = await prisma.assetSnapshot.findMany({
+    where: { assetAccount: { userId } },
+    orderBy: { date: "desc" },
+  });
+  return rows.map((s) => ({ id: s.id, assetAccountId: s.assetAccountId, date: s.date, value: s.value, note: s.note }));
+}
+
+// id が他ユーザーの口座、または存在しない場合は null を返す（呼び出し側で notFound() する）
+export async function getAssetAccountById(userId: string, id: string): Promise<AssetAccountData | null> {
+  const row = await prisma.assetAccount.findFirst({ where: { id, userId } });
+  if (!row) return null;
+  return { id: row.id, name: row.name, type: row.type as AssetAccountData["type"] };
+}
+
+export async function getAssetSnapshotsForAccount(assetAccountId: string): Promise<AssetSnapshotData[]> {
+  const rows = await prisma.assetSnapshot.findMany({ where: { assetAccountId }, orderBy: { date: "desc" } });
+  return rows.map((s) => ({ id: s.id, assetAccountId: s.assetAccountId, date: s.date, value: s.value, note: s.note }));
 }
