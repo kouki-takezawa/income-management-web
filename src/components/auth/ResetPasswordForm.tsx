@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { resetPasswordAction, type ResetPasswordState } from "@/actions/password-reset";
-import { TextInput, Field } from "@/components/ui/Field";
+import { Field, PasswordInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 
 const initialState: ResetPasswordState = {};
@@ -14,10 +14,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="token" value={token} />
       <Field label="新しいパスワード" hint="8文字以上で入力してください">
-        <TextInput type="password" name="password" required minLength={8} autoComplete="new-password" placeholder="********" />
+        <PasswordInput name="password" required minLength={8} autoComplete="new-password" placeholder="********" />
       </Field>
       <Field label="新しいパスワード（確認）">
-        <TextInput type="password" name="confirm" required minLength={8} autoComplete="new-password" placeholder="********" />
+        <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" placeholder="********" />
       </Field>
 
       {state.error && (

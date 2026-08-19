@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { KeyRound, Mail } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { Field, TextInput } from "@/components/ui/Field";
+import { Field, TextInput, PasswordInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { updateAccountEmail, updateAccountPassword } from "@/actions/account";
 
@@ -60,8 +60,7 @@ export function AccountForm({ currentEmail }: { currentEmail: string }) {
           </div>
           <div className="w-56">
             <Field label="現在のパスワード（確認用）">
-              <TextInput
-                type="password"
+              <PasswordInput
                 value={emailPassword}
                 onChange={(e) => setEmailPassword(e.target.value)}
                 autoComplete="current-password"
@@ -84,8 +83,7 @@ export function AccountForm({ currentEmail }: { currentEmail: string }) {
         <div className="flex flex-wrap gap-4">
           <div className="w-56">
             <Field label="現在のパスワード">
-              <TextInput
-                type="password"
+              <PasswordInput
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 autoComplete="current-password"
@@ -94,8 +92,7 @@ export function AccountForm({ currentEmail }: { currentEmail: string }) {
           </div>
           <div className="w-56">
             <Field label="新しいパスワード" hint="8文字以上">
-              <TextInput
-                type="password"
+              <PasswordInput
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
@@ -104,8 +101,7 @@ export function AccountForm({ currentEmail }: { currentEmail: string }) {
           </div>
           <div className="w-56">
             <Field label="新しいパスワード（確認）">
-              <TextInput
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"

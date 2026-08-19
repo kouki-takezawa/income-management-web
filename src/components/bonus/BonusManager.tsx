@@ -8,9 +8,11 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { Field, TextInput } from "@/components/ui/Field";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
+import { useFeedback } from "@/lib/useFeedback";
 import { upsertBonus, deleteBonus } from "@/actions/bonus";
 
 export interface BonusRow {
@@ -44,6 +46,7 @@ export function BonusManager({
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   function openNew() {
     setForm({ date: todayIso(), name: "夏季賞与", amount: "" });
@@ -70,6 +73,7 @@ export function BonusManager({
         return;
       }
       setForm(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -79,6 +83,7 @@ export function BonusManager({
     startTransition(async () => {
       await deleteBonus(form.id!);
       setForm(null);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
@@ -90,9 +95,12 @@ export function BonusManager({
           <h1 className="text-2xl font-extrabold text-text-primary">賞与</h1>
           <p className="mt-1 text-sm text-text-secondary">賞与・一時金の支給履歴を管理します</p>
         </div>
-        <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
-          賞与を追加
-        </Button>
+        <div className="flex items-center gap-3">
+          {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
+          <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
+            賞与を追加
+          </Button>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -157,11 +165,7 @@ export function BonusManager({
               <Button variant="ghost" type="button" onClick={() => setForm(null)}>
                 キャンセル
               </Button>
-              {form.id && (
-                <Button variant="danger" type="button" onClick={remove} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {form.id && <ConfirmButton onConfirm={remove} disabled={isPending} />}
               <Button type="button" onClick={save} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>

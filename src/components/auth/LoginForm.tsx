@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { loginAction, type AuthFormState } from "@/actions/auth";
-import { TextInput, Field } from "@/components/ui/Field";
+import { TextInput, Field, PasswordInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 
 const initialState: AuthFormState = {};
@@ -33,7 +33,7 @@ export function LoginForm({
         <TextInput type="email" name="email" required autoComplete="email" placeholder="you@example.com" />
       </Field>
       <Field label="パスワード">
-        <TextInput type="password" name="password" required autoComplete="current-password" placeholder="********" />
+        <PasswordInput name="password" required autoComplete="current-password" placeholder="********" />
       </Field>
 
       {state.error && (

@@ -6,10 +6,12 @@ import { CalendarGrid } from "@/components/CalendarGrid";
 import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { Pill } from "@/components/ui/Pill";
 import { withAlpha } from "@/lib/color";
 import { THEME } from "@/lib/theme";
 import { yen, trimNumber } from "@/lib/format";
+import { useFeedback } from "@/lib/useFeedback";
 import { toISO } from "@/lib/business/dates";
 import { OVERTIME_CATEGORIES, OVERTIME_CATEGORY_LABELS, type OvertimeCategory } from "@/lib/business/constants";
 import { entryPay, entryTotalHours, type SettingsLike, type OvertimeHours } from "@/lib/business/salary";
@@ -45,6 +47,7 @@ export function OvertimeCalendar({
   });
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   const entriesByDate = useMemo(() => {
     const map = new Map<string, CalendarOvertimeEntry>();
@@ -89,6 +92,7 @@ export function OvertimeCalendar({
         return;
       }
       setSelectedDay(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -98,12 +102,14 @@ export function OvertimeCalendar({
     startTransition(async () => {
       await deleteOvertimeEntry(selectedIso);
       setSelectedDay(null);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
 
   return (
     <>
+      {feedback && <p className="mb-2 text-xs font-semibold text-success">{feedback}</p>}
       <CalendarGrid
         year={year}
         month={month}
@@ -152,11 +158,7 @@ export function OvertimeCalendar({
               <Button variant="ghost" type="button" onClick={() => setSelectedDay(null)}>
                 キャンセル
               </Button>
-              {existing && (
-                <Button variant="danger" type="button" onClick={remove} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {existing && <ConfirmButton onConfirm={remove} disabled={isPending} />}
               <Button type="button" onClick={save} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>

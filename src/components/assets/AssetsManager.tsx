@@ -14,6 +14,7 @@ import { IncomePieChart } from "@/components/charts/IncomePieChart";
 import { AssetsTrendChart } from "@/components/charts/AssetsTrendChart";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
+import { useFeedback } from "@/lib/useFeedback";
 import {
   ASSET_TYPE_COLOR,
   ASSET_TYPE_LABEL,
@@ -43,6 +44,7 @@ export function AssetsManager({
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<AccountFormState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   const total = useMemo(() => currentTotalAssets(accounts, snapshots), [accounts, snapshots]);
   const allocation = useMemo(() => assetAllocation(accounts, snapshots), [accounts, snapshots]);
@@ -63,6 +65,7 @@ export function AssetsManager({
         return;
       }
       setForm(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -74,9 +77,12 @@ export function AssetsManager({
           <h1 className="text-2xl font-extrabold text-text-primary">資産管理</h1>
           <p className="mt-1 text-sm text-text-secondary">現金・預金・投資の残高をまとめて記録できます</p>
         </div>
-        <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
-          口座を追加
-        </Button>
+        <div className="flex items-center gap-3">
+          {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
+          <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
+            口座を追加
+          </Button>
+        </div>
       </div>
 
       <StatCard label="資産総額" value={yen(total)} sub="最新のスナップショット合計" color={THEME.primary} icon={<Landmark size={18} />} />

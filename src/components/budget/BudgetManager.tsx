@@ -2,18 +2,20 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Receipt, PieChart as PieChartIcon, BarChart3, Tags, Trash2 } from "lucide-react";
+import { Plus, Pencil, Receipt, PieChart as PieChartIcon, BarChart3, Tags, Trash2, Search, X, Check } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { Field, TextInput, Select } from "@/components/ui/Field";
 import { MonthNav } from "@/components/Nav";
 import { IncomePieChart } from "@/components/charts/IncomePieChart";
 import { BudgetTrendChart } from "@/components/charts/BudgetTrendChart";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
+import { useFeedback } from "@/lib/useFeedback";
 import { addMonths, toISO } from "@/lib/business/dates";
 import {
   categoryBreakdown,
@@ -75,9 +77,13 @@ export function BudgetManager({
   const [isPending, startTransition] = useTransition();
   const [txForm, setTxForm] = useState<TxFormState | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [catForm, setCatForm] = useState<CategoryFormState | null>(null);
   const [catError, setCatError] = useState<string | null>(null);
+  const [catFeedback, showCatFeedback] = useFeedback();
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const periodPrefix = `${year}-${String(month).padStart(2, "0")}`;
 
@@ -85,6 +91,22 @@ export function BudgetManager({
     () => transactions.filter((t) => t.date.startsWith(periodPrefix)),
     [transactions, periodPrefix]
   );
+
+  const isSearching = searchQuery.trim().length > 0;
+
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return transactions
+      .filter((t) => {
+        const name = categoryName(categories, t.categoryId).toLowerCase();
+        const memo = (t.memo ?? "").toLowerCase();
+        return name.includes(q) || memo.includes(q);
+      })
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [transactions, categories, searchQuery]);
+
+  const visibleTx = isSearching ? searchResults : periodTx;
 
   const summary = useMemo(() => monthlySummary(transactions, periodPrefix), [transactions, periodPrefix]);
   const breakdown = useMemo(() => categoryBreakdown(periodTx, categories), [periodTx, categories]);
@@ -146,6 +168,7 @@ export function BudgetManager({
         return;
       }
       setTxForm(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -155,6 +178,7 @@ export function BudgetManager({
     startTransition(async () => {
       await deleteBudgetTransaction(txForm.id!);
       setTxForm(null);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
@@ -179,6 +203,7 @@ export function BudgetManager({
         return;
       }
       setCatForm(null);
+      showCatFeedback("保存しました");
       router.refresh();
     });
   }
@@ -186,6 +211,8 @@ export function BudgetManager({
   function removeCategory(id: string) {
     startTransition(async () => {
       await deleteBudgetCategory(id);
+      setConfirmDeleteCategoryId(null);
+      showCatFeedback("削除しました");
       router.refresh();
     });
   }
@@ -198,6 +225,7 @@ export function BudgetManager({
           <p className="mt-1 text-sm text-text-secondary">収入・支出を記録して月ごとの収支を確認できます</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
           <MonthNav year={year} month={month} basePath="/budget" param="month" />
           <Button type="button" variant="outline" icon={<Tags size={15} />} onClick={() => setCategoryModalOpen(true)}>
             カテゴリ管理
@@ -236,12 +264,36 @@ export function BudgetManager({
       </div>
 
       <Card>
-        <SectionTitle icon={<Receipt size={16} />}>明細一覧</SectionTitle>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SectionTitle icon={<Receipt size={16} />}>{isSearching ? "検索結果（全期間）" : "明細一覧"}</SectionTitle>
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="カテゴリ・メモで検索"
+              className="w-full rounded-full border border-border bg-bg/60 py-2 pl-9 pr-8 text-sm text-text-primary outline-none transition-colors focus:border-primary focus:bg-white placeholder:text-text-muted"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="検索をクリア"
+                className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-text-muted hover:text-text-secondary"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
         <div className="mt-3 flex flex-col gap-2">
-          {periodTx.length === 0 && (
-            <p className="px-2 py-6 text-sm text-text-muted">この月の記録はまだありません。「記録を追加」から登録してください。</p>
+          {visibleTx.length === 0 && (
+            <p className="px-2 py-6 text-sm text-text-muted">
+              {isSearching ? "該当する記録が見つかりません" : "この月の記録はまだありません。「記録を追加」から登録してください。"}
+            </p>
           )}
-          {periodTx.map((t) => {
+          {visibleTx.map((t) => {
             const category = categories.find((c) => c.id === t.categoryId);
             return (
               <div key={t.id} className="flex items-center gap-3 rounded-2xl bg-bg/60 px-4 py-3.5">
@@ -249,7 +301,9 @@ export function BudgetManager({
                   className="h-2.5 w-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: category?.color ?? THEME.textMuted }}
                 />
-                <span className="w-20 shrink-0 text-sm text-text-secondary">{t.date.slice(5)}</span>
+                <span className={`shrink-0 text-sm text-text-secondary ${isSearching ? "w-24" : "w-20"}`}>
+                  {isSearching ? t.date : t.date.slice(5)}
+                </span>
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text-primary">
                   {categoryName(categories, t.categoryId)}
                   {t.memo ? ` ・ ${t.memo}` : ""}
@@ -327,11 +381,7 @@ export function BudgetManager({
               <Button variant="ghost" type="button" onClick={() => setTxForm(null)}>
                 キャンセル
               </Button>
-              {txForm.id && (
-                <Button variant="danger" type="button" onClick={removeTx} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {txForm.id && <ConfirmButton onConfirm={removeTx} disabled={isPending} />}
               <Button type="button" onClick={saveTx} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>
@@ -341,8 +391,17 @@ export function BudgetManager({
       )}
 
       {categoryModalOpen && (
-        <Modal title="カテゴリ管理" onClose={() => { setCategoryModalOpen(false); setCatForm(null); }} width={440}>
+        <Modal
+          title="カテゴリ管理"
+          onClose={() => {
+            setCategoryModalOpen(false);
+            setCatForm(null);
+            setConfirmDeleteCategoryId(null);
+          }}
+          width={440}
+        >
           <div className="flex flex-col gap-5">
+            {catFeedback && <p className="-mt-2 text-sm font-semibold text-success">{catFeedback}</p>}
             {(["expense", "income"] as const).map((type) => (
               <div key={type}>
                 <div className="mb-2 flex items-center justify-between">
@@ -360,23 +419,47 @@ export function BudgetManager({
                     <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-bg/60 px-3 py-2">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                       <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{c.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => openEditCategory(c)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
-                        aria-label="編集"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeCategory(c.id)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
-                        aria-label="削除"
-                        disabled={isPending}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {confirmDeleteCategoryId === c.id ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteCategoryId(null)}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                            aria-label="キャンセル"
+                          >
+                            <X size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCategory(c.id)}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger text-white"
+                            aria-label="本当に削除する"
+                            disabled={isPending}
+                          >
+                            <Check size={13} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => openEditCategory(c)}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                            aria-label="編集"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteCategoryId(c.id)}
+                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
+                            aria-label="削除"
+                            disabled={isPending}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

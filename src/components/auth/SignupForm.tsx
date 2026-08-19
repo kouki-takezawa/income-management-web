@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signupAction, type AuthFormState } from "@/actions/auth";
-import { TextInput, Field } from "@/components/ui/Field";
+import { TextInput, Field, PasswordInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 
 const initialState: AuthFormState = {};
@@ -17,10 +17,10 @@ export function SignupForm() {
         <TextInput type="email" name="email" required autoComplete="email" placeholder="you@example.com" />
       </Field>
       <Field label="パスワード" hint="8文字以上で入力してください">
-        <TextInput type="password" name="password" required minLength={8} autoComplete="new-password" placeholder="********" />
+        <PasswordInput name="password" required minLength={8} autoComplete="new-password" placeholder="********" />
       </Field>
       <Field label="パスワード（確認）">
-        <TextInput type="password" name="confirm" required minLength={8} autoComplete="new-password" placeholder="********" />
+        <PasswordInput name="confirm" required minLength={8} autoComplete="new-password" placeholder="********" />
       </Field>
 
       {state.error && (

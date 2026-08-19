@@ -6,6 +6,7 @@ import { SlidersHorizontal } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { useFeedback } from "@/lib/useFeedback";
 import { addManualGrant } from "@/actions/leave";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -18,6 +19,7 @@ export function ManualGrantButton() {
   const [days, setDays] = useState("");
   const [note, setNote] = useState("特別付与");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   function openModal() {
     setDate(todayIso());
@@ -36,12 +38,14 @@ export function ManualGrantButton() {
         return;
       }
       setOpen(false);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
 
   return (
-    <>
+    <div className="flex items-center gap-3">
+      {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
       <Button variant="outline" type="button" icon={<SlidersHorizontal size={15} />} onClick={openModal}>
         付与を手動調整
       </Button>
@@ -70,6 +74,6 @@ export function ManualGrantButton() {
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }

@@ -9,10 +9,12 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { StatCard } from "@/components/ui/StatCard";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { Field, TextInput } from "@/components/ui/Field";
 import { AssetsTrendChart } from "@/components/charts/AssetsTrendChart";
 import { yen } from "@/lib/format";
 import { THEME } from "@/lib/theme";
+import { useFeedback } from "@/lib/useFeedback";
 import {
   ASSET_TYPE_LABEL,
   accountValueTrend,
@@ -42,7 +44,7 @@ export function AccountDetail({
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<SnapshotFormState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false);
+  const [feedback, showFeedback] = useFeedback();
 
   const history = useMemo(
     () => [...snapshots].sort((a, b) => b.date.localeCompare(a.date)),
@@ -80,6 +82,7 @@ export function AccountDetail({
         return;
       }
       setForm(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -89,6 +92,7 @@ export function AccountDetail({
     startTransition(async () => {
       await deleteAssetSnapshot(form.id!, account.id);
       setForm(null);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
@@ -112,9 +116,12 @@ export function AccountDetail({
           <h1 className="text-2xl font-extrabold text-text-primary">{account.name}</h1>
           <p className="mt-1 text-sm text-text-secondary">{ASSET_TYPE_LABEL[account.type]}</p>
         </div>
-        <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
-          残高を記録
-        </Button>
+        <div className="flex items-center gap-3">
+          {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
+          <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
+            残高を記録
+          </Button>
+        </div>
       </div>
 
       <StatCard
@@ -159,20 +166,7 @@ export function AccountDetail({
         <SectionTitle icon={<Trash2 size={16} />}>この口座を削除</SectionTitle>
         <p className="mt-2 text-xs text-text-muted">口座を削除すると、記録した残高履歴もすべて削除されます。元に戻せません。</p>
         <div className="mt-3">
-          {confirmDeleteAccount ? (
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" type="button" onClick={() => setConfirmDeleteAccount(false)}>
-                キャンセル
-              </Button>
-              <Button variant="danger" type="button" onClick={removeAccount} disabled={isPending}>
-                本当に削除する
-              </Button>
-            </div>
-          ) : (
-            <Button variant="danger" type="button" onClick={() => setConfirmDeleteAccount(true)}>
-              口座を削除
-            </Button>
-          )}
+          <ConfirmButton onConfirm={removeAccount} disabled={isPending} label="口座を削除" />
         </div>
       </Card>
 
@@ -193,11 +187,7 @@ export function AccountDetail({
               <Button variant="ghost" type="button" onClick={() => setForm(null)}>
                 キャンセル
               </Button>
-              {form.id && (
-                <Button variant="danger" type="button" onClick={removeSnapshot} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {form.id && <ConfirmButton onConfirm={removeSnapshot} disabled={isPending} />}
               <Button type="button" onClick={save} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>

@@ -6,7 +6,9 @@ import { Pencil } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Field, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { yen } from "@/lib/format";
+import { useFeedback } from "@/lib/useFeedback";
 import { upsertMonthlyRecord, deleteMonthlyRecord } from "@/actions/salary";
 
 export function MonthRecordEditor({
@@ -31,6 +33,7 @@ export function MonthRecordEditor({
   );
   const [note, setNote] = useState(record?.note ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   function openModal() {
     setBase(record?.baseSalaryOverride != null ? String(record.baseSalaryOverride) : "");
@@ -54,6 +57,7 @@ export function MonthRecordEditor({
         return;
       }
       setOpen(false);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -62,12 +66,14 @@ export function MonthRecordEditor({
     startTransition(async () => {
       await deleteMonthlyRecord(year, month);
       setOpen(false);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
 
   return (
-    <>
+    <div className="flex items-center gap-3">
+      {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
       <Button variant="outline" type="button" icon={<Pencil size={15} />} onClick={openModal}>
         この月の基本給・手当
       </Button>
@@ -89,11 +95,7 @@ export function MonthRecordEditor({
               <Button variant="ghost" type="button" onClick={() => setOpen(false)}>
                 キャンセル
               </Button>
-              {record && (
-                <Button variant="danger" type="button" onClick={remove} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {record && <ConfirmButton onConfirm={remove} disabled={isPending} />}
               <Button type="button" onClick={save} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>
@@ -101,6 +103,6 @@ export function MonthRecordEditor({
           </div>
         </Modal>
       )}
-    </>
+    </div>
   );
 }

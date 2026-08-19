@@ -9,10 +9,12 @@ import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Field, Select, TextInput } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { ConfirmButton } from "@/components/ui/ConfirmButton";
 import { MonthNav } from "@/components/Nav";
 import { withAlpha } from "@/lib/color";
 import { THEME } from "@/lib/theme";
 import { toISO } from "@/lib/business/dates";
+import { useFeedback } from "@/lib/useFeedback";
 import { LEAVE_TYPES, type LeaveType } from "@/lib/business/constants";
 import { upsertLeaveUsage, deleteLeaveUsage } from "@/actions/leave";
 
@@ -45,6 +47,7 @@ export function LeaveManager({
   const [type, setType] = useState<LeaveType>("full");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [feedback, showFeedback] = useFeedback();
 
   const usagesByDate = useMemo(() => {
     const map = new Map<string, LeaveUsageRow>();
@@ -76,6 +79,7 @@ export function LeaveManager({
         return;
       }
       setSelectedDate(null);
+      showFeedback("保存しました");
       router.refresh();
     });
   }
@@ -85,6 +89,7 @@ export function LeaveManager({
     startTransition(async () => {
       await deleteLeaveUsage(selectedDate);
       setSelectedDate(null);
+      showFeedback("削除しました");
       router.refresh();
     });
   }
@@ -96,7 +101,10 @@ export function LeaveManager({
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <SectionTitle icon={<CalendarDays size={16} />}>有給カレンダー</SectionTitle>
-          <MonthNav year={year} month={month} basePath="/leave" param="month" />
+          <div className="flex items-center gap-3">
+            {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
+            <MonthNav year={year} month={month} basePath="/leave" param="month" />
+          </div>
         </div>
         <p className="mt-2.5 text-[11px] text-text-muted">日付をクリックすると取得記録の追加・編集ができます</p>
         <div className="mt-3">
@@ -180,11 +188,7 @@ export function LeaveManager({
               <Button variant="ghost" type="button" onClick={() => setSelectedDate(null)}>
                 キャンセル
               </Button>
-              {existing && (
-                <Button variant="danger" type="button" onClick={remove} disabled={isPending}>
-                  削除
-                </Button>
-              )}
+              {existing && <ConfirmButton onConfirm={remove} disabled={isPending} />}
               <Button type="button" onClick={save} disabled={isPending}>
                 {isPending ? "保存中..." : "保存"}
               </Button>
