@@ -154,7 +154,7 @@ export function OvertimeCalendar({
               合計 {trimNumber(previewTotalHours)} 時間 ／ 残業代 {yen(previewPay)}
             </div>
             {error && <p className="text-sm font-medium text-danger">{error}</p>}
-            <div className="mt-1 flex items-center justify-end gap-2">
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
               <Button variant="ghost" type="button" onClick={() => setSelectedDay(null)}>
                 キャンセル
               </Button>

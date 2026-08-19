@@ -184,7 +184,7 @@ export function LeaveManager({
               <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="任意" />
             </Field>
             {error && <p className="text-sm font-medium text-danger">{error}</p>}
-            <div className="mt-1 flex items-center justify-end gap-2">
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
               <Button variant="ghost" type="button" onClick={() => setSelectedDate(null)}>
                 キャンセル
               </Button>

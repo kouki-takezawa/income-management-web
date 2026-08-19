@@ -377,7 +377,7 @@ export function BudgetManager({
               <TextInput value={txForm.memo} onChange={(e) => setTxForm({ ...txForm, memo: e.target.value })} />
             </Field>
             {txError && <p className="text-sm font-medium text-danger">{txError}</p>}
-            <div className="mt-1 flex items-center justify-end gap-2">
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
               <Button variant="ghost" type="button" onClick={() => setTxForm(null)}>
                 キャンセル
               </Button>
@@ -491,7 +491,7 @@ export function BudgetManager({
                   </div>
                 </div>
                 {catError && <p className="text-sm font-medium text-danger">{catError}</p>}
-                <div className="flex items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button variant="ghost" type="button" onClick={() => setCatForm(null)}>
                     キャンセル
                   </Button>

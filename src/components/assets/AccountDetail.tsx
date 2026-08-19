@@ -183,7 +183,7 @@ export function AccountDetail({
               <TextInput value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </Field>
             {error && <p className="text-sm font-medium text-danger">{error}</p>}
-            <div className="mt-1 flex items-center justify-end gap-2">
+            <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
               <Button variant="ghost" type="button" onClick={() => setForm(null)}>
                 キャンセル
               </Button>
