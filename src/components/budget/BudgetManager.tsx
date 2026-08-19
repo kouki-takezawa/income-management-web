@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Pencil,
@@ -16,6 +16,8 @@ import {
   Repeat,
   AlertTriangle,
   FileSpreadsheet,
+  ChevronDown,
+  CalendarRange,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -146,6 +148,12 @@ export function BudgetManager({
   const visibleTx = isSearching ? searchResults : periodTx;
 
   const summary = useMemo(() => monthlySummary(transactions, periodPrefix), [transactions, periodPrefix]);
+  const prevSummary = useMemo(() => {
+    const prevMonth = addMonths({ y: year, m: month, d: 1 }, -1);
+    const prevPrefix = toISO(prevMonth).slice(0, 7);
+    return monthlySummary(transactions, prevPrefix);
+  }, [transactions, year, month]);
+  const deltaPercent = (current: number, prev: number): number | null => (prev > 0 ? ((current - prev) / prev) * 100 : null);
   const breakdown = useMemo(() => categoryBreakdown(periodTx, categories), [periodTx, categories]);
   const budgetStatuses = useMemo(() => categoryBudgetStatuses(periodTx, categories), [periodTx, categories]);
   const overBudgetStatuses = budgetStatuses.filter((s) => s.overBudget);
@@ -157,6 +165,10 @@ export function BudgetManager({
     const flows = periodTrend(transactions, prefixes);
     return flows.map((f, i) => ({ label: `${months[i].m}月`, income: f.income, expense: f.expense }));
   }, [transactions, year, month]);
+
+  const yearTx = useMemo(() => transactions.filter((t) => t.date.startsWith(String(year))), [transactions, year]);
+  const annualSummary = useMemo(() => monthlySummary(transactions, String(year)), [transactions, year]);
+  const annualBreakdown = useMemo(() => categoryBreakdown(yearTx, categories), [yearTx, categories]);
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const incomeCategories = categories.filter((c) => c.type === "income");
@@ -171,6 +183,19 @@ export function BudgetManager({
       memo: "",
     });
   }
+
+  // どの画面からでも押せるクイック追加FAB（/budget?new=1）から来た場合、記録フォームを
+  // 自動で開く。開いたら URL のクエリだけ削除しておく（再読み込みのたびに開かないように）。
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    openNewTx();
+    const params = new URLSearchParams(searchParams);
+    params.delete("new");
+    const query = params.toString();
+    router.replace(query ? `/budget?${query}` : "/budget", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   function openEditTx(t: BudgetTransactionData) {
     setTxError(null);
@@ -371,9 +396,25 @@ export function BudgetManager({
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="今月の収入" value={yen(summary.income)} color={THEME.success} />
-        <StatCard label="今月の支出" value={yen(summary.expense)} color={THEME.danger} />
-        <StatCard label="差引" value={yen(summary.balance)} color={THEME.primary} />
+        <StatCard
+          label="今月の収入"
+          value={yen(summary.income)}
+          deltaPercent={deltaPercent(summary.income, prevSummary.income)}
+          color={THEME.success}
+        />
+        <StatCard
+          label="今月の支出"
+          value={yen(summary.expense)}
+          deltaPercent={deltaPercent(summary.expense, prevSummary.expense)}
+          deltaGoodDirection="down"
+          color={THEME.danger}
+        />
+        <StatCard
+          label="差引"
+          value={yen(summary.balance)}
+          deltaPercent={deltaPercent(summary.balance, prevSummary.balance)}
+          color={THEME.primary}
+        />
       </div>
 
       {budgetStatuses.length > 0 && (
@@ -421,6 +462,35 @@ export function BudgetManager({
           <BudgetTrendChart data={trendData} />
         </div>
       </Card>
+
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-3xl bg-card p-4 shadow-soft sm:p-6">
+          <span className="flex items-center gap-2 text-sm font-bold text-text-primary">
+            <CalendarRange size={16} />
+            {year}年の年間サマリーを見る
+          </span>
+          <ChevronDown size={18} className="shrink-0 text-text-secondary transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard label="年間収入" value={yen(annualSummary.income)} color={THEME.success} />
+            <StatCard label="年間支出" value={yen(annualSummary.expense)} color={THEME.danger} />
+            <StatCard label="年間差引" value={yen(annualSummary.balance)} color={THEME.primary} />
+          </div>
+          <Card style={{ minHeight: 320 }}>
+            <SectionTitle icon={<PieChartIcon size={16} />}>カテゴリ別支出（{year}年）</SectionTitle>
+            <div className="mt-2 h-72 sm:h-60">
+              {annualBreakdown.length > 0 ? (
+                <IncomePieChart data={annualBreakdown} />
+              ) : (
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm text-text-muted">
+                  この年の支出はまだ記録されていません
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      </details>
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -588,19 +658,19 @@ export function BudgetManager({
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteCategoryId(null)}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
                             aria-label="キャンセル"
                           >
-                            <X size={13} />
+                            <X size={16} />
                           </button>
                           <button
                             type="button"
                             onClick={() => removeCategory(c.id)}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger text-white"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger text-white"
                             aria-label="本当に削除する"
                             disabled={isPending}
                           >
-                            <Check size={13} />
+                            <Check size={16} />
                           </button>
                         </>
                       ) : (
@@ -608,19 +678,19 @@ export function BudgetManager({
                           <button
                             type="button"
                             onClick={() => openEditCategory(c)}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
                             aria-label="編集"
                           >
-                            <Pencil size={13} />
+                            <Pencil size={16} />
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirmDeleteCategoryId(c.id)}
-                            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
                             aria-label="削除"
                             disabled={isPending}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={16} />
                           </button>
                         </>
                       )}
@@ -727,19 +797,19 @@ export function BudgetManager({
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteRecurringId(null)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
                         aria-label="キャンセル"
                       >
-                        <X size={13} />
+                        <X size={16} />
                       </button>
                       <button
                         type="button"
                         onClick={() => removeRecurring(r.id)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger text-white"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger text-white"
                         aria-label="本当に削除する"
                         disabled={isPending}
                       >
-                        <Check size={13} />
+                        <Check size={16} />
                       </button>
                     </>
                   ) : (
@@ -747,19 +817,19 @@ export function BudgetManager({
                       <button
                         type="button"
                         onClick={() => openEditRecurring(r)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
                         aria-label="編集"
                       >
-                        <Pencil size={13} />
+                        <Pencil size={16} />
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteRecurringId(r.id)}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
                         aria-label="削除"
                         disabled={isPending}
                       >
-                        <Trash2 size={13} />
+                        <Trash2 size={16} />
                       </button>
                     </>
                   )}

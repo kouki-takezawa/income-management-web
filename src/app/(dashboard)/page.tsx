@@ -124,6 +124,21 @@ export default async function DashboardPage({
   const monthSavings = totalMonthIncome - budgetSummary.expense;
   const savingsRate = totalMonthIncome > 0 ? (monthSavings / totalMonthIncome) * 100 : null;
 
+  // 先月比（今月のお金の流れカードの増減表示用）
+  const prevDashYmd = addMonths({ y: dashYear, m: dashMonth, d: 1 }, -1);
+  const prevMonthRecord = findRecord(monthlyRecords, prevDashYmd.y, prevDashYmd.m);
+  const prevMonthGross =
+    recordBaseSalary(settings, prevMonthRecord) +
+    recordAllowanceTotal(settings, prevMonthRecord) +
+    monthOvertimeSummary(settings, overtimeEntries, prevDashYmd.y, prevDashYmd.m).pay;
+  const prevBudgetSummary = budgetMonthlySummary(
+    budgetTransactions,
+    `${prevDashYmd.y}-${String(prevDashYmd.m).padStart(2, "0")}`
+  );
+  const prevTotalMonthIncome = prevMonthGross + prevBudgetSummary.income;
+  const prevMonthSavings = prevTotalMonthIncome - prevBudgetSummary.expense;
+  const deltaPercent = (current: number, prev: number): number | null => (prev > 0 ? ((current - prev) / prev) * 100 : null);
+
   const monthNet =
     settings.showNetEstimate && monthGross > 0
       ? estimateNetIncome(monthGross, settings.age, settings.prefecture, 12)
@@ -193,14 +208,15 @@ export default async function DashboardPage({
           <StatCard
             label="収入合計"
             value={yen(totalMonthIncome)}
-            sub="給与総支給＋家計簿の収入"
+            deltaPercent={deltaPercent(totalMonthIncome, prevTotalMonthIncome)}
             color={THEME.success}
             icon={<ArrowDownToLine size={18} />}
           />
           <StatCard
             label="支出"
             value={yen(budgetSummary.expense)}
-            sub="家計簿の記録より"
+            deltaPercent={deltaPercent(budgetSummary.expense, prevBudgetSummary.expense)}
+            deltaGoodDirection="down"
             color={THEME.danger}
             icon={<ArrowUpFromLine size={18} />}
           />
@@ -208,6 +224,7 @@ export default async function DashboardPage({
             label="今月の貯蓄"
             value={yen(monthSavings)}
             sub={savingsRate !== null ? `貯蓄率 ${savingsRate.toFixed(0)}%` : null}
+            deltaPercent={deltaPercent(monthSavings, prevMonthSavings)}
             color={THEME.primary}
             icon={<PiggyBank size={18} />}
           />

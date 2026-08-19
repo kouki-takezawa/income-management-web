@@ -102,3 +102,20 @@ body {
 summary::-webkit-details-marker {
   display: none;
 }
+
+/* Modal（スマホではボトムシート）が開くときの軽いスライドイン演出 */
+@keyframes sheet-in {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .animate-sheet-in {
+    animation: sheet-in 0.22s ease-out;
+  }
+}

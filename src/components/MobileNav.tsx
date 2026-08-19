@@ -26,12 +26,6 @@ export function MobileNav({ userEmail, role }: { userEmail: string; role: string
   return (
     <div className="md:hidden">
       <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between bg-sidebar px-4 shadow-soft-sm">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">
-            <PiggyBank size={16} />
-          </div>
-          <span className="text-sm font-extrabold text-text-primary">年収管理</span>
-        </div>
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -41,6 +35,12 @@ export function MobileNav({ userEmail, role }: { userEmail: string; role: string
         >
           <Menu size={20} />
         </button>
+        <div className="flex items-center gap-2.5">
+          <span className="text-sm font-extrabold text-text-primary">年収管理</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-white">
+            <PiggyBank size={16} />
+          </div>
+        </div>
       </header>
 
       {open && (

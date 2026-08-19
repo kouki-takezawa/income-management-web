@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getOrCreateSettings } from "@/lib/data";
 import { Sidebar } from "@/components/Sidebar";
 import { MobileNav } from "@/components/MobileNav";
+import { QuickAddFab } from "@/components/QuickAddFab";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -27,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <main className="min-w-0 flex-1 overflow-y-auto px-4 pt-20 pb-8 sm:px-6 md:px-10 md:py-8">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
+      <QuickAddFab />
     </div>
   );
 }
