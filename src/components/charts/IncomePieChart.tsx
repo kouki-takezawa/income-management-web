@@ -30,8 +30,8 @@ export function IncomePieChart({ data }: { data: BreakdownItem[] }) {
               data={visible}
               dataKey="value"
               nameKey="name"
-              innerRadius={46}
-              outerRadius={82}
+              innerRadius="56%"
+              outerRadius="92%"
               paddingAngle={2}
               stroke="none"
               isAnimationActive
