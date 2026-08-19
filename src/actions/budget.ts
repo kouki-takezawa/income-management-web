@@ -20,12 +20,17 @@ export async function upsertBudgetCategory(input: {
   name: string;
   type: "income" | "expense";
   color: string;
+  monthlyLimit?: number | null;
 }): Promise<ActionResult> {
   const userId = await requireUserId();
   const name = input.name.trim();
   if (!name) {
     return { success: false, error: "カテゴリ名を入力してください" };
   }
+  const monthlyLimit =
+    input.monthlyLimit == null || !Number.isFinite(input.monthlyLimit) || input.monthlyLimit <= 0
+      ? null
+      : Math.round(input.monthlyLimit);
 
   const duplicate = await prisma.budgetCategory.findFirst({
     where: { userId, name, type: input.type, ...(input.id ? { id: { not: input.id } } : {}) },
@@ -40,10 +45,10 @@ export async function upsertBudgetCategory(input: {
       if (!existing) return { success: false, error: "対象のカテゴリが見つかりません" };
       await prisma.budgetCategory.update({
         where: { id: input.id },
-        data: { name, type: input.type, color: input.color },
+        data: { name, type: input.type, color: input.color, monthlyLimit },
       });
     } else {
-      await prisma.budgetCategory.create({ data: { userId, name, type: input.type, color: input.color } });
+      await prisma.budgetCategory.create({ data: { userId, name, type: input.type, color: input.color, monthlyLimit } });
     }
   } catch (error) {
     if (isUniqueConstraintError(error)) {

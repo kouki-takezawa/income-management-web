@@ -2,7 +2,22 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Receipt, PieChart as PieChartIcon, BarChart3, Tags, Trash2, Search, X, Check } from "lucide-react";
+import Link from "next/link";
+import {
+  Plus,
+  Pencil,
+  Receipt,
+  PieChart as PieChartIcon,
+  BarChart3,
+  Tags,
+  Trash2,
+  Search,
+  X,
+  Check,
+  Repeat,
+  AlertTriangle,
+  FileSpreadsheet,
+} from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { StatCard } from "@/components/ui/StatCard";
@@ -19,11 +34,13 @@ import { useFeedback } from "@/lib/useFeedback";
 import { addMonths, toISO } from "@/lib/business/dates";
 import {
   categoryBreakdown,
+  categoryBudgetStatuses,
   categoryName,
   monthlySummary,
   periodTrend,
   type BudgetCategoryData,
   type BudgetTransactionData,
+  type RecurringBudgetItemData,
 } from "@/lib/business/budget";
 import {
   deleteBudgetCategory,
@@ -31,6 +48,7 @@ import {
   upsertBudgetCategory,
   upsertBudgetTransaction,
 } from "@/actions/budget";
+import { deleteRecurringBudgetItem, upsertRecurringBudgetItem } from "@/actions/recurring";
 
 const CATEGORY_COLOR_SWATCHES = [
   THEME.primary,
@@ -60,6 +78,18 @@ interface CategoryFormState {
   name: string;
   type: "income" | "expense";
   color: string;
+  monthlyLimit: string;
+}
+
+interface RecurringFormState {
+  id?: string;
+  name: string;
+  type: "income" | "expense";
+  categoryId: string;
+  amount: string;
+  dayOfMonth: string;
+  memo: string;
+  active: boolean;
 }
 
 export function BudgetManager({
@@ -67,11 +97,13 @@ export function BudgetManager({
   month,
   categories,
   transactions,
+  recurringItems,
 }: {
   year: number;
   month: number;
   categories: BudgetCategoryData[];
   transactions: BudgetTransactionData[];
+  recurringItems: RecurringBudgetItemData[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -84,6 +116,11 @@ export function BudgetManager({
   const [catFeedback, showCatFeedback] = useFeedback();
   const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [recurringModalOpen, setRecurringModalOpen] = useState(false);
+  const [recurringForm, setRecurringForm] = useState<RecurringFormState | null>(null);
+  const [recurringError, setRecurringError] = useState<string | null>(null);
+  const [recurringFeedback, showRecurringFeedback] = useFeedback();
+  const [confirmDeleteRecurringId, setConfirmDeleteRecurringId] = useState<string | null>(null);
 
   const periodPrefix = `${year}-${String(month).padStart(2, "0")}`;
 
@@ -110,10 +147,12 @@ export function BudgetManager({
 
   const summary = useMemo(() => monthlySummary(transactions, periodPrefix), [transactions, periodPrefix]);
   const breakdown = useMemo(() => categoryBreakdown(periodTx, categories), [periodTx, categories]);
+  const budgetStatuses = useMemo(() => categoryBudgetStatuses(periodTx, categories), [periodTx, categories]);
+  const overBudgetStatuses = budgetStatuses.filter((s) => s.overBudget);
 
   const trendData = useMemo(() => {
     const base = { y: year, m: month, d: 1 };
-    const months = Array.from({ length: 6 }, (_, i) => addMonths(base, i - 5));
+    const months = Array.from({ length: 12 }, (_, i) => addMonths(base, i - 11));
     const prefixes = months.map((m) => toISO(m).slice(0, 7));
     const flows = periodTrend(transactions, prefixes);
     return flows.map((f, i) => ({ label: `${months[i].m}月`, income: f.income, expense: f.expense }));
@@ -185,19 +224,31 @@ export function BudgetManager({
 
   function openNewCategory(type: "income" | "expense") {
     setCatError(null);
-    setCatForm({ name: "", type, color: CATEGORY_COLOR_SWATCHES[0] });
+    setCatForm({ name: "", type, color: CATEGORY_COLOR_SWATCHES[0], monthlyLimit: "" });
   }
 
   function openEditCategory(c: BudgetCategoryData) {
     setCatError(null);
-    setCatForm({ id: c.id, name: c.name, type: c.type, color: c.color });
+    setCatForm({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      color: c.color,
+      monthlyLimit: c.monthlyLimit != null ? String(c.monthlyLimit) : "",
+    });
   }
 
   function saveCategory() {
     if (!catForm) return;
     setCatError(null);
     startTransition(async () => {
-      const result = await upsertBudgetCategory(catForm);
+      const result = await upsertBudgetCategory({
+        id: catForm.id,
+        name: catForm.name,
+        type: catForm.type,
+        color: catForm.color,
+        monthlyLimit: catForm.monthlyLimit.trim() === "" ? null : Number(catForm.monthlyLimit),
+      });
       if (!result.success) {
         setCatError(result.error ?? "保存に失敗しました");
         return;
@@ -217,6 +268,72 @@ export function BudgetManager({
     });
   }
 
+  function openNewRecurring() {
+    setRecurringError(null);
+    setRecurringForm({
+      type: "expense",
+      name: "",
+      categoryId: expenseCategories[0]?.id ?? "",
+      amount: "",
+      dayOfMonth: "1",
+      memo: "",
+      active: true,
+    });
+  }
+
+  function openEditRecurring(r: RecurringBudgetItemData) {
+    setRecurringError(null);
+    setRecurringForm({
+      id: r.id,
+      name: r.name,
+      type: r.type,
+      categoryId: r.categoryId,
+      amount: String(r.amount),
+      dayOfMonth: String(r.dayOfMonth),
+      memo: r.memo ?? "",
+      active: r.active,
+    });
+  }
+
+  function switchRecurringType(type: "income" | "expense") {
+    if (!recurringForm) return;
+    const pool = type === "expense" ? expenseCategories : incomeCategories;
+    setRecurringForm({ ...recurringForm, type, categoryId: pool[0]?.id ?? "" });
+  }
+
+  function saveRecurring() {
+    if (!recurringForm) return;
+    setRecurringError(null);
+    startTransition(async () => {
+      const result = await upsertRecurringBudgetItem({
+        id: recurringForm.id,
+        name: recurringForm.name,
+        type: recurringForm.type,
+        categoryId: recurringForm.categoryId,
+        amount: Number(recurringForm.amount) || 0,
+        dayOfMonth: Number(recurringForm.dayOfMonth) || 0,
+        memo: recurringForm.memo,
+        active: recurringForm.active,
+      });
+      if (!result.success) {
+        setRecurringError(result.error ?? "保存に失敗しました");
+        return;
+      }
+      setRecurringForm(null);
+      showRecurringFeedback("保存しました");
+      router.refresh();
+    });
+  }
+
+  function removeRecurring(id: string) {
+    startTransition(async () => {
+      await deleteRecurringBudgetItem(id);
+      setConfirmDeleteRecurringId(null);
+      showRecurringFeedback("削除しました");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-7">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -227,20 +344,64 @@ export function BudgetManager({
         <div className="flex flex-wrap items-center gap-2.5">
           {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
           <MonthNav year={year} month={month} basePath="/budget" param="month" />
+          <Button type="button" variant="outline" icon={<Repeat size={15} />} onClick={() => setRecurringModalOpen(true)}>
+            定期支出
+          </Button>
           <Button type="button" variant="outline" icon={<Tags size={15} />} onClick={() => setCategoryModalOpen(true)}>
             カテゴリ管理
           </Button>
+          <Link href="/api/export/budget-csv" prefetch={false}>
+            <Button type="button" variant="outline" icon={<FileSpreadsheet size={15} />}>
+              CSV
+            </Button>
+          </Link>
           <Button type="button" icon={<Plus size={16} />} onClick={openNewTx}>
             記録を追加
           </Button>
         </div>
       </div>
 
+      {overBudgetStatuses.length > 0 && (
+        <div className="flex items-start gap-2.5 rounded-2xl bg-danger/12 px-5 py-3.5">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-danger" />
+          <p className="text-sm font-semibold text-danger">
+            {overBudgetStatuses.map((s) => s.name).join("・")}が今月の予算を超えています
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard label="今月の収入" value={yen(summary.income)} color={THEME.success} />
         <StatCard label="今月の支出" value={yen(summary.expense)} color={THEME.danger} />
         <StatCard label="差引" value={yen(summary.balance)} color={THEME.primary} />
       </div>
+
+      {budgetStatuses.length > 0 && (
+        <Card>
+          <SectionTitle icon={<AlertTriangle size={16} />}>予算の使用状況</SectionTitle>
+          <div className="mt-3 flex flex-col gap-3">
+            {budgetStatuses.map((s) => {
+              const percent = Math.min(100, Math.round((s.spent / s.limit) * 100));
+              return (
+                <div key={s.categoryId}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-text-primary">{s.name}</span>
+                    <span className={`font-bold ${s.overBudget ? "text-danger" : "text-text-secondary"}`}>
+                      {yen(s.spent)} / {yen(s.limit)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bg">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${percent}%`, backgroundColor: s.overBudget ? THEME.danger : s.color }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card className="lg:col-span-7" style={{ minHeight: 320 }}>
@@ -256,7 +417,7 @@ export function BudgetManager({
           </div>
         </Card>
         <Card className="lg:col-span-5" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<BarChart3 size={16} />}>収支の推移（直近6ヶ月）</SectionTitle>
+          <SectionTitle icon={<BarChart3 size={16} />}>収支の推移（直近12ヶ月）</SectionTitle>
           <div style={{ height: 250 }} className="mt-2">
             <BudgetTrendChart data={trendData} />
           </div>
@@ -418,7 +579,12 @@ export function BudgetManager({
                   {(type === "expense" ? expenseCategories : incomeCategories).map((c) => (
                     <div key={c.id} className="flex items-center gap-2.5 rounded-xl bg-bg/60 px-3 py-2">
                       <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{c.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-text-primary">
+                        {c.name}
+                        {c.monthlyLimit != null && (
+                          <span className="ml-1.5 text-xs text-text-muted">予算{yen(c.monthlyLimit)}</span>
+                        )}
+                      </span>
                       {confirmDeleteCategoryId === c.id ? (
                         <>
                           <button
@@ -490,12 +656,200 @@ export function BudgetManager({
                     ))}
                   </div>
                 </div>
+                {catForm.type === "expense" && (
+                  <Field label="月間予算（円・任意）" hint="設定すると使いすぎ時に家計簿画面で警告します">
+                    <TextInput
+                      inputMode="numeric"
+                      value={catForm.monthlyLimit}
+                      onChange={(e) => setCatForm({ ...catForm, monthlyLimit: e.target.value })}
+                      placeholder="未設定"
+                    />
+                  </Field>
+                )}
                 {catError && <p className="text-sm font-medium text-danger">{catError}</p>}
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button variant="ghost" type="button" onClick={() => setCatForm(null)}>
                     キャンセル
                   </Button>
                   <Button type="button" onClick={saveCategory} disabled={isPending}>
+                    {isPending ? "保存中..." : "保存"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
+      {recurringModalOpen && (
+        <Modal
+          title="定期支出"
+          onClose={() => {
+            setRecurringModalOpen(false);
+            setRecurringForm(null);
+            setConfirmDeleteRecurringId(null);
+          }}
+          width={480}
+        >
+          <div className="flex flex-col gap-4">
+            <p className="-mt-1 text-xs leading-relaxed text-text-muted">
+              家賃・サブスクなど毎月決まって発生する収支を登録すると、発生日を過ぎたタイミングで自動的に家計簿へ記録されます。
+            </p>
+            {recurringFeedback && <p className="text-sm font-semibold text-success">{recurringFeedback}</p>}
+
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-text-secondary">登録済みの項目</span>
+              <button
+                type="button"
+                onClick={openNewRecurring}
+                className="flex items-center gap-1 text-xs font-semibold text-primary-dark hover:underline"
+              >
+                <Plus size={13} /> 追加
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              {recurringItems.length === 0 && (
+                <p className="px-1 py-4 text-sm text-text-muted">まだ登録されていません。「追加」から登録してください。</p>
+              )}
+              {recurringItems.map((r) => (
+                <div key={r.id} className="flex items-center gap-2.5 rounded-xl bg-bg/60 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className={`truncate text-sm ${r.active ? "text-text-primary" : "text-text-muted line-through"}`}>
+                      {r.name}
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      毎月{r.dayOfMonth}日 ・ {r.type === "income" ? "+" : "-"}
+                      {yen(r.amount)}
+                      {!r.active && " ・ 停止中"}
+                    </p>
+                  </div>
+                  {confirmDeleteRecurringId === r.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteRecurringId(null)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                        aria-label="キャンセル"
+                      >
+                        <X size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRecurring(r.id)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-danger text-white"
+                        aria-label="本当に削除する"
+                        disabled={isPending}
+                      >
+                        <Check size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openEditRecurring(r)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-text-secondary hover:bg-primary-light"
+                        aria-label="編集"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteRecurringId(r.id)}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-danger hover:bg-danger/10"
+                        aria-label="削除"
+                        disabled={isPending}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {recurringForm && (
+              <div className="flex flex-col gap-3 rounded-2xl border border-border p-3.5">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={recurringForm.type === "expense" ? "primary" : "outline"}
+                    className="flex-1"
+                    onClick={() => switchRecurringType("expense")}
+                  >
+                    支出
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={recurringForm.type === "income" ? "primary" : "outline"}
+                    className="flex-1"
+                    onClick={() => switchRecurringType("income")}
+                  >
+                    収入
+                  </Button>
+                </div>
+                <Field label="名称">
+                  <TextInput
+                    value={recurringForm.name}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, name: e.target.value })}
+                    placeholder="例：家賃"
+                  />
+                </Field>
+                <Field label="カテゴリ">
+                  <Select
+                    value={recurringForm.categoryId}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, categoryId: e.target.value })}
+                  >
+                    {(recurringForm.type === "expense" ? expenseCategories : incomeCategories).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <Field label="金額（円）">
+                      <TextInput
+                        inputMode="numeric"
+                        value={recurringForm.amount}
+                        onChange={(e) => setRecurringForm({ ...recurringForm, amount: e.target.value })}
+                        placeholder="0"
+                      />
+                    </Field>
+                  </div>
+                  <div className="w-28">
+                    <Field label="発生日" hint="1〜28">
+                      <TextInput
+                        inputMode="numeric"
+                        value={recurringForm.dayOfMonth}
+                        onChange={(e) => setRecurringForm({ ...recurringForm, dayOfMonth: e.target.value })}
+                      />
+                    </Field>
+                  </div>
+                </div>
+                <Field label="メモ（任意）">
+                  <TextInput
+                    value={recurringForm.memo}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, memo: e.target.value })}
+                  />
+                </Field>
+                <label className="flex items-center gap-2 text-sm text-text-secondary">
+                  <input
+                    type="checkbox"
+                    checked={recurringForm.active}
+                    onChange={(e) => setRecurringForm({ ...recurringForm, active: e.target.checked })}
+                    className="h-4 w-4 accent-[var(--color-primary)]"
+                  />
+                  有効にする
+                </label>
+                {recurringError && <p className="text-sm font-medium text-danger">{recurringError}</p>}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button variant="ghost" type="button" onClick={() => setRecurringForm(null)}>
+                    キャンセル
+                  </Button>
+                  <Button type="button" onClick={saveRecurring} disabled={isPending}>
                     {isPending ? "保存中..." : "保存"}
                   </Button>
                 </div>

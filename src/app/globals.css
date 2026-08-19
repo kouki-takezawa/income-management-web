@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: light;
+
   --color-primary: #f0a9a0;
   --color-primary-dark: #d9847a;
   --color-primary-light: #fdeae6;
@@ -20,6 +22,29 @@
   --color-text-secondary: #9c8b80;
   --color-text-muted: #c7b8ac;
   --color-border: #f3e2d6;
+}
+
+/* ダークモードは OS の配色設定に自動追従（手動切り替えUIは無し）。
+   ベースカラー（primary/accent 等のアクセント）は据え置き、背景・カード・
+   文字色などニュートラル系のトークンと、背景として使われる primary-light /
+   リンク色として使われる primary-dark のみ暗色向けに調整する。 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --color-primary-dark: #f2b8ac;
+    --color-primary-light: #33231e;
+
+    --color-bg: #1a1614;
+    --color-card: #241e1a;
+    --color-sidebar: #201b18;
+    --color-sidebar-2: #2e2620;
+
+    --color-text-primary: #f1e6dc;
+    --color-text-secondary: #b3a292;
+    --color-text-muted: #7a6c5e;
+    --color-border: #382f27;
+  }
 }
 
 @theme inline {

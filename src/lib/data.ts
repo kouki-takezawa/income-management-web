@@ -3,8 +3,15 @@ import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { normalizeSettings, type SettingsData } from "@/lib/settings";
 import type { OvertimeHours } from "@/lib/business/salary";
-import { DEFAULT_BUDGET_CATEGORIES, type BudgetCategoryData, type BudgetTransactionData } from "@/lib/business/budget";
+import {
+  DEFAULT_BUDGET_CATEGORIES,
+  pendingRecurringMonths,
+  type BudgetCategoryData,
+  type BudgetTransactionData,
+  type RecurringBudgetItemData,
+} from "@/lib/business/budget";
 import type { AssetAccountData, AssetSnapshotData } from "@/lib/business/assets";
+import { todayYMD } from "@/lib/business/dates";
 
 // ユーザーごとのデータ取得ヘルパー。すべて userId でスコープされる。
 
@@ -64,10 +71,20 @@ export async function getLeaveManualGrants(userId: string) {
 
 // 初回アクセス時、そのユーザーのカテゴリが0件ならデフォルトカテゴリを作成する。
 // getOrCreateSettings と同じ考え方（同一リクエスト内で複数回呼ばれても DB アクセスは1回）。
+function toBudgetCategoryData(c: {
+  id: string;
+  name: string;
+  type: string;
+  color: string;
+  monthlyLimit: number | null;
+}): BudgetCategoryData {
+  return { id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color, monthlyLimit: c.monthlyLimit };
+}
+
 export const getOrCreateBudgetCategories = cache(async (userId: string): Promise<BudgetCategoryData[]> => {
   const existing = await prisma.budgetCategory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
   if (existing.length > 0) {
-    return existing.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));
+    return existing.map(toBudgetCategoryData);
   }
   // skipDuplicates + (userId, name, type) の一意制約により、同時アクセスで
   // このブロックが二重に走っても重複作成されない（デフォルトカテゴリ名は
@@ -77,7 +94,7 @@ export const getOrCreateBudgetCategories = cache(async (userId: string): Promise
     skipDuplicates: true,
   });
   const created = await prisma.budgetCategory.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
-  return created.map((c) => ({ id: c.id, name: c.name, type: c.type as "income" | "expense", color: c.color }));
+  return created.map(toBudgetCategoryData);
 });
 
 export async function getBudgetTransactions(userId: string): Promise<BudgetTransactionData[]> {
@@ -90,6 +107,56 @@ export async function getBudgetTransactions(userId: string): Promise<BudgetTrans
     amount: t.amount,
     memo: t.memo,
   }));
+}
+
+export async function getRecurringBudgetItems(userId: string): Promise<RecurringBudgetItemData[]> {
+  const rows = await prisma.recurringBudgetItem.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    type: r.type as "income" | "expense",
+    categoryId: r.categoryId,
+    amount: r.amount,
+    dayOfMonth: r.dayOfMonth,
+    memo: r.memo,
+    active: r.active,
+    lastGeneratedMonth: r.lastGeneratedMonth,
+  }));
+}
+
+// アクティブな定期項目について、未生成の月分の BudgetTransaction をまとめて追いつかせる。
+// /budget を開くたびに呼び、副作用（DB書き込み）を伴うため getBudgetTransactions とは
+// 別関数にしている（cache() でメモ化しない — 生成後に最新の取引一覧を読み直す必要があるため）。
+export async function generateRecurringBudgetTransactions(userId: string): Promise<void> {
+  const items = await prisma.recurringBudgetItem.findMany({ where: { userId, active: true } });
+  if (items.length === 0) return;
+  const today = todayYMD();
+
+  for (const item of items) {
+    const months = pendingRecurringMonths(
+      { dayOfMonth: item.dayOfMonth, lastGeneratedMonth: item.lastGeneratedMonth },
+      today
+    );
+    if (months.length === 0) continue;
+
+    await prisma.budgetTransaction.createMany({
+      data: months.map((month) => ({
+        userId,
+        date: `${month}-${String(item.dayOfMonth).padStart(2, "0")}`,
+        type: item.type,
+        categoryId: item.categoryId,
+        amount: item.amount,
+        memo: item.memo,
+        sourceRecurringItemId: item.id,
+        sourceMonth: month,
+      })),
+      skipDuplicates: true,
+    });
+    await prisma.recurringBudgetItem.update({
+      where: { id: item.id },
+      data: { lastGeneratedMonth: months[months.length - 1] },
+    });
+  }
 }
 
 export async function getAssetAccounts(userId: string): Promise<AssetAccountData[]> {

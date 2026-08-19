@@ -2,6 +2,17 @@ import "server-only";
 import type { AnnualSummary } from "@/lib/business/salary";
 import { MONTH_NAMES_JP } from "@/lib/business/constants";
 import { bonusByMonthMap, type ExportBonusLike } from "./shared";
+import type { BudgetCategoryData, BudgetTransactionData } from "@/lib/business/budget";
+import { categoryName } from "@/lib/business/budget";
+import type { AssetAccountData, AssetSnapshotData } from "@/lib/business/assets";
+
+const BOM = String.fromCharCode(0xfeff);
+
+/** CSVのフィールドとしてカンマ・改行・ダブルクォートを含む値を安全にエスケープする */
+function csvField(value: string | number): string {
+  const s = String(value);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
 
 /**
  * 年度の月次内訳を CSV（UTF-8 + BOM。Windows の Excel でも文字化けしないように）
@@ -38,8 +49,45 @@ export function buildAnnualCsv(summary: AnnualSummary, bonuses: ExportBonusLike[
     ].join(",")
   );
 
-  // 先頭に UTF-8 BOM を付与 (Windows Excel 対策)。リテラル文字ではなくエスケープで
-  // 明示することで、エディタ/ツールを経由しても確実に U+FEFF 1文字になるようにする。
-  const BOM = String.fromCharCode(0xfeff);
+  return BOM + lines.join("\r\n") + "\r\n";
+}
+
+/** 家計簿の全取引を CSV にする（全期間・日付昇順） */
+export function buildBudgetCsv(
+  transactions: BudgetTransactionData[],
+  categories: BudgetCategoryData[]
+): string {
+  const lines: string[] = [];
+  lines.push(["日付", "種別", "カテゴリ", "金額", "メモ"].join(","));
+
+  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  for (const t of sorted) {
+    lines.push(
+      [
+        csvField(t.date),
+        csvField(t.type === "income" ? "収入" : "支出"),
+        csvField(categoryName(categories, t.categoryId)),
+        t.amount,
+        csvField(t.memo ?? ""),
+      ].join(",")
+    );
+  }
+
+  return BOM + lines.join("\r\n") + "\r\n";
+}
+
+/** 資産の残高記録を CSV にする（全口座・全期間・日付昇順） */
+export function buildAssetsCsv(accounts: AssetAccountData[], snapshots: AssetSnapshotData[]): string {
+  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? "不明な口座";
+  const lines: string[] = [];
+  lines.push(["日付", "口座名", "残高・評価額", "メモ"].join(","));
+
+  const sorted = [...snapshots].sort((a, b) => a.date.localeCompare(b.date));
+  for (const s of sorted) {
+    lines.push(
+      [csvField(s.date), csvField(accountName(s.assetAccountId)), s.value, csvField(s.note ?? "")].join(",")
+    );
+  }
+
   return BOM + lines.join("\r\n") + "\r\n";
 }

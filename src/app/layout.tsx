@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
@@ -11,7 +11,16 @@ const notoSansJP = Noto_Sans_JP({
 
 export const metadata: Metadata = {
   title: "年収管理アプリ",
-  description: "給与・残業・賞与・有給休暇をまとめて管理する年収管理アプリ",
+  description: "給与・残業・賞与・有給休暇・家計簿・資産管理をまとめて管理する年収管理アプリ",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "年収管理",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f0a9a0",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

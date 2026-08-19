@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, ChevronRight, Landmark, PieChart as PieChartIcon, TrendingUp } from "lucide-react";
+import { Plus, ChevronRight, Landmark, PieChart as PieChartIcon, TrendingUp, FileSpreadsheet } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { StatCard } from "@/components/ui/StatCard";
@@ -77,8 +77,13 @@ export function AssetsManager({
           <h1 className="text-2xl font-extrabold text-text-primary">資産管理</h1>
           <p className="mt-1 text-sm text-text-secondary">現金・預金・投資の残高をまとめて記録できます</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {feedback && <span className="text-sm font-semibold text-success">{feedback}</span>}
+          <Link href="/api/export/assets-csv" prefetch={false}>
+            <Button type="button" variant="outline" icon={<FileSpreadsheet size={15} />}>
+              CSV
+            </Button>
+          </Link>
           <Button type="button" icon={<Plus size={16} />} onClick={openNew}>
             口座を追加
           </Button>
@@ -101,7 +106,7 @@ export function AssetsManager({
           </div>
         </Card>
         <Card className="lg:col-span-7" style={{ minHeight: 320 }}>
-          <SectionTitle icon={<TrendingUp size={16} />}>資産推移（直近6ヶ月）</SectionTitle>
+          <SectionTitle icon={<TrendingUp size={16} />}>資産推移（直近12ヶ月）</SectionTitle>
           <div style={{ height: 250 }} className="mt-2">
             <AssetsTrendChart data={trend} gradientId="assetsTotalGradient" />
           </div>

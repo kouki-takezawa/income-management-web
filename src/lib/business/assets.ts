@@ -87,7 +87,7 @@ export function assetsTrend(
   accounts: AssetAccountData[],
   snapshots: AssetSnapshotData[],
   today: YMD = todayYMD(),
-  months = 6
+  months = 12
 ): { label: string; total: number }[] {
   const result: { label: string; total: number }[] = [];
   for (let i = months - 1; i >= 0; i--) {

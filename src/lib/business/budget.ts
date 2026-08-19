@@ -1,10 +1,12 @@
 // 家計簿（収支記録）の集計ロジック。DBアクセスを含まない純粋関数のみを置く。
+import { addMonths, type YMD } from "@/lib/business/dates";
 
 export interface BudgetCategoryData {
   id: string;
   name: string;
   type: "income" | "expense";
   color: string;
+  monthlyLimit: number | null;
 }
 
 export interface BudgetTransactionData {
@@ -83,16 +85,71 @@ export function periodTrend(transactions: BudgetTransactionData[], periods: stri
   });
 }
 
-export function monthOptions(transactions: BudgetTransactionData[], defaultMonth: string): string[] {
-  const set = new Set(transactions.map((t) => t.date.slice(0, 7)));
-  set.add(defaultMonth);
-  return [...set].sort().reverse();
+export interface CategoryBudgetStatus {
+  categoryId: string;
+  name: string;
+  color: string;
+  limit: number;
+  spent: number;
+  overBudget: boolean;
 }
 
-export function yearOptions(transactions: BudgetTransactionData[], defaultYear: string): string[] {
-  const set = new Set(transactions.map((t) => t.date.slice(0, 4)));
-  set.add(defaultYear);
-  return [...set].sort().reverse();
+// 月間予算（monthlyLimit）が設定されている支出カテゴリだけを対象に、当期間の
+// 使用状況を計算する。予算未設定のカテゴリは対象外（アラートを出しようがないため）。
+export function categoryBudgetStatuses(
+  transactions: BudgetTransactionData[],
+  categories: BudgetCategoryData[]
+): CategoryBudgetStatus[] {
+  return categories
+    .filter((c) => c.type === "expense" && c.monthlyLimit != null && c.monthlyLimit > 0)
+    .map((c) => {
+      const spent = transactions
+        .filter((t) => t.type === "expense" && t.categoryId === c.id)
+        .reduce((s, t) => s + t.amount, 0);
+      const limit = c.monthlyLimit as number;
+      return { categoryId: c.id, name: c.name, color: c.color, limit, spent, overBudget: spent > limit };
+    })
+    .sort((a, b) => b.spent / b.limit - a.spent / a.limit);
+}
+
+export interface RecurringBudgetItemData {
+  id: string;
+  name: string;
+  type: "income" | "expense";
+  categoryId: string;
+  amount: number;
+  dayOfMonth: number;
+  memo: string | null;
+  active: boolean;
+  lastGeneratedMonth: string | null;
+}
+
+function parseMonthStr(monthStr: string): YMD {
+  const [y, m] = monthStr.split("-").map(Number);
+  return { y, m, d: 1 };
+}
+
+// この定期項目について「今すぐ生成すべき YYYY-MM のリスト」を返す純粋関数。
+// - 初回（lastGeneratedMonth が null）は当月から開始する（過去に遡って一括生成しない）
+// - 当月分は、発生日（dayOfMonth）を過ぎているときだけ対象にする
+// - 訪問間隔が空いていた場合（数ヶ月ぶりのアクセス等）は、未生成の月をまとめて返す
+export function pendingRecurringMonths(
+  item: Pick<RecurringBudgetItemData, "dayOfMonth" | "lastGeneratedMonth">,
+  today: YMD
+): string[] {
+  let cursor: YMD = item.lastGeneratedMonth
+    ? addMonths(parseMonthStr(item.lastGeneratedMonth), 1)
+    : { y: today.y, m: today.m, d: 1 };
+
+  const months: string[] = [];
+  while (cursor.y < today.y || (cursor.y === today.y && cursor.m <= today.m)) {
+    const isCurrentMonth = cursor.y === today.y && cursor.m === today.m;
+    if (isCurrentMonth && today.d < item.dayOfMonth) break;
+    months.push(`${cursor.y}-${String(cursor.m).padStart(2, "0")}`);
+    if (isCurrentMonth) break;
+    cursor = addMonths(cursor, 1);
+  }
+  return months;
 }
 
 export const DEFAULT_BUDGET_CATEGORIES: { name: string; type: "income" | "expense"; color: string }[] = [

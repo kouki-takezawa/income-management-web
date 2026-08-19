@@ -38,9 +38,10 @@ model User {
   leaveUsages         LeaveUsage[]
   leaveManualGrants   LeaveManualGrant[]
   passwordResetTokens PasswordResetToken[]
-  budgetCategories    BudgetCategory[]
-  budgetTransactions  BudgetTransaction[]
-  assetAccounts       AssetAccount[]
+  budgetCategories     BudgetCategory[]
+  budgetTransactions   BudgetTransaction[]
+  recurringBudgetItems RecurringBudgetItem[]
+  assetAccounts        AssetAccount[]
 }
 
 model Settings {
@@ -151,12 +152,38 @@ model BudgetCategory {
   // "income" | "expense" — LeaveUsage.type と同じ流儀のプレーン文字列
   type      String
   color     String
+  // 月間予算の上限（円）。未設定（null）ならアラート対象外。支出カテゴリのみ意味を持つ。
+  monthlyLimit Int?
   createdAt DateTime @default(now())
 
   // 同名カテゴリの重複作成を防ぐ（UI上も紛らわしいため）。副次的に、初回アクセス時の
   // デフォルトカテゴリ作成（getOrCreateBudgetCategories）を createMany + skipDuplicates
   // で冪等にし、同時アクセスによる二重作成を防ぐのにも使う。
   @@unique([userId, name, type])
+  @@index([userId])
+}
+
+// 毎月決まった額が発生する収支（家賃・サブスク・給与天引きなど）を1回登録すれば、
+// 該当日を過ぎた月分の BudgetTransaction を自動生成する。cron 等のバックグラウンド
+// ジョブは持たないため、生成は「/budget を開いたときに、前回生成済みの月から今月まで
+// 足りない分をまとめて追いつかせる」遅延評価方式（lastGeneratedMonth 参照）。
+model RecurringBudgetItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String
+  type       String // "income" | "expense"
+  categoryId String
+  amount     Int
+  // 毎月の発生日（1-28。29日以降は月によって存在しないため許可しない）
+  dayOfMonth Int
+  memo       String?
+  active     Boolean @default(true)
+  // 直近で BudgetTransaction を生成し終えた月（YYYY-MM）。null は「まだ一度も生成していない」。
+  lastGeneratedMonth String?
+  createdAt          DateTime @default(now())
+
   @@index([userId])
 }
 
@@ -174,6 +201,13 @@ model BudgetTransaction {
   amount     Int
   memo       String?
 
+  // RecurringBudgetItem からの自動生成で使う（手動登録は両方 null）。この2つの一意制約で
+  // 同時アクセスによる同一月分の二重生成を防ぐ（skipDuplicates と組み合わせる）。
+  // Postgres の一意制約は NULL 同士を重複とみなさないため、手動登録同士は影響を受けない。
+  sourceRecurringItemId String?
+  sourceMonth           String?
+
+  @@unique([sourceRecurringItemId, sourceMonth])
   @@index([userId])
   @@index([userId, date])
 }

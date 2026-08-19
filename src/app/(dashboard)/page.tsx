@@ -13,9 +13,14 @@ import {
   FileText,
   Receipt,
   Landmark,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { requireUserId } from "@/lib/session";
 import {
+  generateRecurringBudgetTransactions,
   getAssetAccounts,
   getAssetSnapshots,
   getBonuses,
@@ -27,7 +32,7 @@ import {
   getOvertimeEntries,
 } from "@/lib/data";
 import { parseYearMonthParam, parseYearParam } from "@/lib/params";
-import { todayYMD } from "@/lib/business/dates";
+import { addMonths, daysInMonthOf, todayYMD, toISO } from "@/lib/business/dates";
 import {
   annualSummary,
   currentFiscalYear,
@@ -40,7 +45,7 @@ import {
 import { estimateFurusatoLimit, estimateNetIncome } from "@/lib/business/tax";
 import { leaveBalance } from "@/lib/business/leave";
 import { monthlySummary as budgetMonthlySummary } from "@/lib/business/budget";
-import { currentTotalAssets } from "@/lib/business/assets";
+import { currentTotalAssets, totalAssetsAsOf } from "@/lib/business/assets";
 import { MONTH_NAMES_JP } from "@/lib/business/constants";
 import { yen, hoursLabel, daysLabel } from "@/lib/format";
 import { THEME, CATEGORY_COLORS } from "@/lib/theme";
@@ -61,6 +66,9 @@ export default async function DashboardPage({
   const userId = await requireUserId();
   const params = await searchParams;
   const today = todayYMD();
+
+  // 定期支出の未生成分を先に追いつかせてから読む（/budget を開いていなくても反映されるように）
+  await generateRecurringBudgetTransactions(userId);
 
   const [
     settings,
@@ -86,6 +94,16 @@ export default async function DashboardPage({
 
   const { year: dashYear, month: dashMonth } = parseYearMonthParam(params.month, today.y, today.m);
   const totalAssets = currentTotalAssets(assetAccounts, assetSnapshots);
+
+  const prevMonthYmd = addMonths(today, -1);
+  const prevMonthEndDate = toISO({
+    y: prevMonthYmd.y,
+    m: prevMonthYmd.m,
+    d: daysInMonthOf(prevMonthYmd.y, prevMonthYmd.m),
+  });
+  const prevTotalAssets = totalAssetsAsOf(assetAccounts, assetSnapshots, prevMonthEndDate);
+  const assetChangePercent = prevTotalAssets > 0 ? ((totalAssets - prevTotalAssets) / prevTotalAssets) * 100 : null;
+
   const budgetSummary = budgetMonthlySummary(
     budgetTransactions,
     `${dashYear}-${String(dashMonth).padStart(2, "0")}`
@@ -97,6 +115,13 @@ export default async function DashboardPage({
   const monthAllow = recordAllowanceTotal(settings, monthRecord);
   const { pay: monthOtPay, hours: monthOtHours } = monthOvertimeSummary(settings, overtimeEntries, dashYear, dashMonth);
   const monthGross = monthBase + monthAllow + monthOtPay;
+
+  // 「今月のお金の流れ」: 給与の総支給に家計簿の収入（副収入など）を足したものを収入合計とし、
+  // 家計簿の支出を差し引いた額を貯蓄として見せる。給与と家計簿という別々の記録を、
+  // ダッシュボードでは1つの流れとして繋げて表示する。
+  const totalMonthIncome = monthGross + budgetSummary.income;
+  const monthSavings = totalMonthIncome - budgetSummary.expense;
+  const savingsRate = totalMonthIncome > 0 ? (monthSavings / totalMonthIncome) * 100 : null;
 
   const monthNet =
     settings.showNetEstimate && monthGross > 0
@@ -130,9 +155,69 @@ export default async function DashboardPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-text-primary">ダッシュボード</h1>
-          <p className="mt-1 text-sm text-text-secondary">今月の総支給・手取りをひと目で確認できます</p>
+          <p className="mt-1 text-sm text-text-secondary">収入・支出・資産の状況をまとめて確認できます</p>
         </div>
         <MonthNav year={dashYear} month={dashMonth} basePath="/" param="month" />
+      </div>
+
+      <Link href="/assets">
+        <Card className="bg-primary-light!">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-bold text-text-secondary">
+                <Landmark size={16} />
+                資産総額
+              </div>
+              <div className="mt-2 truncate text-4xl font-black text-text-primary sm:text-5xl">{yen(totalAssets)}</div>
+              {assetChangePercent !== null && (
+                <div
+                  className={`mt-2 flex items-center gap-1 text-sm font-semibold ${
+                    assetChangePercent >= 0 ? "text-success" : "text-danger"
+                  }`}
+                >
+                  {assetChangePercent >= 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
+                  先月末比 {assetChangePercent >= 0 ? "+" : ""}
+                  {assetChangePercent.toFixed(1)}%
+                </div>
+              )}
+            </div>
+            <span className="text-xs font-semibold text-primary-dark">資産管理で詳しく見る →</span>
+          </div>
+        </Card>
+      </Link>
+
+      <div className="flex flex-col gap-4">
+        <SectionTitle icon={<Wallet size={16} />}>今月のお金の流れ</SectionTitle>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard
+            label="収入合計"
+            value={yen(totalMonthIncome)}
+            sub="給与総支給＋家計簿の収入"
+            color={THEME.success}
+            icon={<ArrowDownToLine size={18} />}
+          />
+          <StatCard
+            label="支出"
+            value={yen(budgetSummary.expense)}
+            sub="家計簿の記録より"
+            color={THEME.danger}
+            icon={<ArrowUpFromLine size={18} />}
+          />
+          <StatCard
+            label="今月の貯蓄"
+            value={yen(monthSavings)}
+            sub={savingsRate !== null ? `貯蓄率 ${savingsRate.toFixed(0)}%` : null}
+            color={THEME.primary}
+            icon={<PiggyBank size={18} />}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2.5">
+          <Link href="/budget">
+            <Button type="button" variant="outline" icon={<Receipt size={14} />}>
+              家計簿を見る
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -299,30 +384,6 @@ export default async function DashboardPage({
             )}
           </div>
         </Card>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <SectionTitle icon={<Receipt size={16} />}>家計簿・資産管理</SectionTitle>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Link href="/budget">
-            <StatCard
-              label="今月の家計簿収支"
-              value={yen(budgetSummary.balance)}
-              sub={`収入 ${yen(budgetSummary.income)} / 支出 ${yen(budgetSummary.expense)}`}
-              color={budgetSummary.balance >= 0 ? THEME.success : THEME.danger}
-              icon={<Receipt size={18} />}
-            />
-          </Link>
-          <Link href="/assets">
-            <StatCard
-              label="資産総額"
-              value={yen(totalAssets)}
-              sub="最新のスナップショット合計"
-              color={THEME.primary}
-              icon={<Landmark size={18} />}
-            />
-          </Link>
-        </div>
       </div>
     </div>
   );
