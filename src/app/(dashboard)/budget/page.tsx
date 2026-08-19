@@ -18,14 +18,16 @@ export default async function BudgetPage({
   const params = await searchParams;
   const today = todayYMD();
 
-  // 定期支出の未生成分を先に追いつかせてから明細を読む（同じリクエスト内で反映させるため）
-  await generateRecurringBudgetTransactions(userId);
-
-  const [categories, transactions, recurringItems] = await Promise.all([
+  // 定期支出の生成はカテゴリ・定期項目一覧の取得と並行して走らせ、明細一覧
+  // （getBudgetTransactions）だけ生成完了を待つ（新規生成分を同じリクエストで
+  // 反映するために必要な依存はこれだけなので、他の2つの取得はブロックしない）。
+  const generation = generateRecurringBudgetTransactions(userId);
+  const [categories, recurringItems] = await Promise.all([
     getOrCreateBudgetCategories(userId),
-    getBudgetTransactions(userId),
     getRecurringBudgetItems(userId),
   ]);
+  await generation;
+  const transactions = await getBudgetTransactions(userId);
 
   const { year, month } = parseYearMonthParam(params.month, today.y, today.m);
 

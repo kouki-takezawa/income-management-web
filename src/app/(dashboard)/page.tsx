@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { requireUserId } from "@/lib/session";
 import {
-  generateRecurringBudgetTransactions,
   getAssetAccounts,
   getAssetSnapshots,
   getBonuses,
@@ -67,9 +66,6 @@ export default async function DashboardPage({
   const userId = await requireUserId();
   const params = await searchParams;
   const today = todayYMD();
-
-  // 定期支出の未生成分を先に追いつかせてから読む（/budget を開いていなくても反映されるように）
-  await generateRecurringBudgetTransactions(userId);
 
   const [
     settings,

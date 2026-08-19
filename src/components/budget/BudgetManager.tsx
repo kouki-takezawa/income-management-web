@@ -184,18 +184,35 @@ export function BudgetManager({
     });
   }
 
-  // どの画面からでも押せるクイック追加FAB（/budget?new=1）から来た場合、記録フォームを
-  // 自動で開く。開いたら URL のクエリだけ削除しておく（再読み込みのたびに開かないように）。
+  // どの画面からでも押せるクイック追加FAB（/budget?new=1&from=...）から来た場合、記録
+  // フォームを自動で開く。from は「戻り先」として保持し、キャンセル・閉じる操作で
+  // 家計簿ページに取り残されず元の画面に戻れるようにする（未指定なら通常通りこのページに残る）。
+  // from はURLを経由するため、サイト内の相対パスであることを検証してから使う
+  // （honeycomb: "/foo" はOK、"https://evil.com" のような絶対URLは無視してフォールバック）。
+  const [returnTo, setReturnTo] = useState<string | null>(null);
   const searchParams = useSearchParams();
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
     openNewTx();
+    const from = searchParams.get("from");
+    if (from && from.startsWith("/") && !from.startsWith("//")) {
+      setReturnTo(from);
+    }
     const params = new URLSearchParams(searchParams);
     params.delete("new");
+    params.delete("from");
     const query = params.toString();
     router.replace(query ? `/budget?${query}` : "/budget", { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  function closeTxForm() {
+    setTxForm(null);
+    if (returnTo) {
+      router.push(returnTo);
+      setReturnTo(null);
+    }
+  }
 
   function openEditTx(t: BudgetTransactionData) {
     setTxError(null);
@@ -559,7 +576,7 @@ export function BudgetManager({
       </Card>
 
       {txForm && (
-        <Modal title={txForm.id ? "記録を編集" : "収支を記録"} onClose={() => setTxForm(null)}>
+        <Modal title={txForm.id ? "記録を編集" : "収支を記録"} onClose={closeTxForm}>
           <div className="flex flex-col gap-4">
             <div className="flex gap-2">
               <Button
@@ -607,7 +624,7 @@ export function BudgetManager({
             </Field>
             {txError && <p className="text-sm font-medium text-danger">{txError}</p>}
             <div className="mt-1 flex flex-wrap items-center justify-end gap-2">
-              <Button variant="ghost" type="button" onClick={() => setTxForm(null)}>
+              <Button variant="ghost" type="button" onClick={closeTxForm}>
                 キャンセル
               </Button>
               {txForm.id && <ConfirmButton onConfirm={removeTx} disabled={isPending} />}
