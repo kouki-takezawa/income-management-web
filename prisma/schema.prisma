@@ -1,5 +1,11 @@
 // Prisma schema — 年収・給与・有給管理アプリ
 // Vercel Postgres + Prisma の公式パターンに準拠
+//
+// migrations ディレクトリを持たず、デプロイのたびに `prisma db push` でこの
+// スキーマをそのまま反映する運用（package.json の vercel-build 参照）。新しい
+// @@unique 制約の追加など「データ損失の可能性あり」と判定される変更は db push が
+// 対話的確認なしでは失敗するため、--accept-data-loss を付けている。既存データと
+// 衝突する制約を追加する変更は、事前に重複行がないか確認してからマージすること。
 generator client {
   provider = "prisma-client-js"
 }
